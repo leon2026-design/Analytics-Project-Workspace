@@ -1,0 +1,8 @@
+# requirements.txt
+# Core dependencies (add more as your project grows)
+pytest>=7.0
+pandas>=1.5
+
+# Optional (choose one for the dashboard frontend)
+# dash>=2.0
+# streamlit>=1.20

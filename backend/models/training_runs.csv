@@ -1,0 +1,2 @@
+timestamp,data_path,processed_path,model_path,features,target,mae,r2
+2025-10-10T02:52:15.898395,backend/data,backend\data\processed\traffic_all_clean.csv,backend/models\traffic_model.pkl,posted_speed_nbr;total_lanes_nbr;capacity_nbr;total_volume_nbr;truck_volume_nbr,car_growth_nbr,0.4693277109533152,0.026700590816434833
