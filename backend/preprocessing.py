@@ -13,7 +13,7 @@ from typing import Optional
 import pandas as pd
 
 
-"""Data cleaning and feature engineering stubs"""
+"""Data cleaning and feature engineering"""
 
 
 def load_data(file_path: str, **read_csv_kwargs) -> pd.DataFrame:

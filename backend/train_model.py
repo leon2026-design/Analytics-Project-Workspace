@@ -7,14 +7,17 @@ trained pipeline and records metadata about the training run.
 """
 
 import os
+from pathlib import Path
+from typing import Optional
 import joblib
 import pandas as pd
 from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_absolute_error, r2_score
 from sklearn.pipeline import Pipeline
 from sklearn.impute import SimpleImputer
-from sklearn.preprocessing import StandardScaler
+from xgboost import XGBRegressor
+import matplotlib.pyplot as plt
+import numpy as np
 
 from backend.preprocessing import (
     get_preprocessed_data,
@@ -32,19 +35,47 @@ MODEL_PATH = os.path.join(MODEL_DIR, "traffic_model.pkl")
 TARGET = "car_growth_nbr"
 FEATURES = [
     "posted_speed_nbr",
+    "ff_speed_nbr",
     "total_lanes_nbr",
+    "lane_width_nbr",
     "capacity_nbr",
     "total_volume_nbr",
     "truck_volume_nbr",
+    "vmt_nbr",
+    "truck_vmt_nbr",
+    "vht_nbr",
+    "volume_capacity_ratio_nbr",
+    "congestion_index_nbr",
+    "congestion_delay_nbr",
+    "delay_ratio_nbr",
+    "section_length_nbr",
+    "median_width_nbr",
+    "fwy_art_nbr",
 ]
 
 
-def train_model(data_path: str = DATA_PATH, model_path: str = MODEL_PATH):
+def train_model(data_path: str = DATA_PATH, model_path: str = MODEL_PATH, odot_district: Optional[int] = 6):
     # 1. Load and preprocess data (supports directory or glob)
     if os.path.isdir(data_path) or ("*" in data_path):
         df = load_all_data(data_path)
     else:
         df = get_preprocessed_data(data_path)
+
+    # If requested, filter dataset to a specific ODOT district (Columbus = 6)
+    if odot_district is not None:
+        col = "odot_district"
+        if col in df.columns:
+            # coerce to numeric for safe comparison
+            try:
+                df[col] = pd.to_numeric(df[col], errors="coerce")
+            except Exception:
+                pass
+            before = len(df)
+            df = df[df[col] == odot_district]
+            after = len(df)
+            print(f"Filtered by {col}={odot_district}: {before} -> {after} rows")
+        else:
+            print(f"Warning: column '{col}' not found in data; skipping district filter")
 
     # Persist cleaned concatenated dataset for reproducibility
     processed_dir = os.path.join("backend", "data", "processed")
@@ -58,15 +89,22 @@ def train_model(data_path: str = DATA_PATH, model_path: str = MODEL_PATH):
     except Exception:
         df.to_csv(processed_path, index=False)
 
-    # 2. Ensure schema + numeric and coerce
-    validate_schema(df, required_columns=[TARGET] + FEATURES)
-    df = coerce_numeric(df, FEATURES + [TARGET])
+    # 2. Ensure schema + numeric and coerce (robust to missing requested features)
+    available_features = [f for f in FEATURES if f in df.columns]
+    missing_features = [f for f in FEATURES if f not in df.columns]
+    if missing_features:
+        print(f"Warning: missing features will be ignored: {missing_features}")
+    if not available_features:
+        raise ValueError("No requested FEATURES are present in the dataset after preprocessing.")
+
+    validate_schema(df, required_columns=[TARGET] + available_features)
+    df = coerce_numeric(df, available_features + [TARGET])
 
     # 2b. Drop rows with missing target or features
-    df = df.dropna(subset=[TARGET] + FEATURES)
+    df = df.dropna(subset=[TARGET] + available_features)
 
     # 3. Define X, y
-    X = df[FEATURES]
+    X = df[available_features]
     y = df[TARGET]
 
     # 4. Train/test split
@@ -75,22 +113,63 @@ def train_model(data_path: str = DATA_PATH, model_path: str = MODEL_PATH):
     # 5. Build pipeline and train
     pipeline = Pipeline([
         ("imputer", SimpleImputer(strategy="median")),
-        ("scaler", StandardScaler()),
-        ("lr", LinearRegression()),
+        ("xgb", XGBRegressor(
+            n_estimators=500,
+            learning_rate=0.05,
+            max_depth=6,
+            subsample=0.8,
+            colsample_bytree=0.8,
+            reg_lambda=1.0,
+            random_state=42,
+            n_jobs=-1,
+            tree_method="hist",
+        )),
     ])
+    # Fit without early stopping to avoid eval_set transformation mismatch in Pipeline
     pipeline.fit(X_train, y_train)
 
     # 6. Evaluate
     y_pred = pipeline.predict(X_test)
     mae = mean_absolute_error(y_test, y_pred)
     r2 = r2_score(y_test, y_pred)
-    print(f"✅ Model trained. MAE={mae:.3f}, R²={r2:.3f}")
+    print(f"Model trained. MAE={mae:.3f}, R²={r2:.3f}")
 
     # 7. Save model + metadata
     os.makedirs(MODEL_DIR, exist_ok=True)
-    meta = {"features": FEATURES, "target": TARGET, "mae": mae, "r2": r2}
+    meta = {"features": available_features, "target": TARGET, "mae": mae, "r2": r2}
     joblib.dump({"model": pipeline, "meta": meta}, model_path)
-    print(f"📁 Model and metadata saved to {model_path}")
+    print(f"Model and metadata saved to {model_path}")
+
+    # 7b. Export feature importances (XGBRegressor)
+    try:
+        xgb = pipeline.named_steps.get("xgb")
+        if xgb is not None and hasattr(xgb, "feature_importances_"):
+            importances = np.array(xgb.feature_importances_, dtype=float)
+            fi_dir = Path(MODEL_DIR)
+            fi_dir.mkdir(parents=True, exist_ok=True)
+            # Save CSV
+            fi_df = pd.DataFrame({
+                "feature": available_features,
+                "importance": importances,
+            }).sort_values("importance", ascending=False)
+            fi_csv_path = fi_dir / "feature_importances.csv"
+            fi_df.to_csv(fi_csv_path, index=False)
+            # Save bar plot (top 20)
+            top_k = min(20, len(fi_df))
+            top_df = fi_df.head(top_k)[::-1]  # reverse for horizontal plot
+            plt.figure(figsize=(8, max(4, 0.35 * top_k + 1)))
+            plt.barh(top_df["feature"], top_df["importance"], color="#2a9d8f")
+            plt.xlabel("Importance")
+            plt.title("XGBoost Feature Importances (top 20)")
+            plt.tight_layout()
+            fi_png_path = fi_dir / "feature_importances.png"
+            plt.savefig(fi_png_path, dpi=150)
+            plt.close()
+            print(f"Feature importances saved: {fi_csv_path} and {fi_png_path}")
+        else:
+            print("Note: Feature importances not available on the final estimator.")
+    except Exception as e:
+        print(f"Warning: failed to export feature importances: {e}")
 
     # Append run to training_runs.csv
     runs_path = os.path.join(MODEL_DIR, "training_runs.csv")
@@ -102,8 +181,9 @@ def train_model(data_path: str = DATA_PATH, model_path: str = MODEL_PATH):
         "data_path": data_path,
         "processed_path": processed_path,
         "model_path": model_path,
-        "features": ";".join(FEATURES),
+    "features": ";".join(available_features),
         "target": TARGET,
+        "odot_district": odot_district,
         "mae": mae,
         "r2": r2,
     }
@@ -124,5 +204,6 @@ def train(data_path: str = DATA_PATH, model_path: str = MODEL_PATH):
 
 
 if __name__ == "__main__":
-    train_model()
+    # Train only on ODOT district 6 (Columbus area) by default
+    train_model(odot_district=6)
 

@@ -2,6 +2,11 @@
 # Core dependencies (add more as your project grows)
 pytest>=7.0
 pandas>=1.5
+numpy>=1.23
+scikit-learn>=1.2
+joblib>=1.2
+xgboost>=1.7
+matplotlib>=3.7
 
 # Optional (choose one for the dashboard frontend)
 # dash>=2.0
