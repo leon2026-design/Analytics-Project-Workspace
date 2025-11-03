@@ -116,6 +116,7 @@ def save_processed(df: pd.DataFrame, out_path: str, index: bool = False) -> None
 
 def load_all_data(path_or_pattern: str = "backend/data", file_pattern: str = "*.csv",
                   year_regex: Optional[str] = r"(19|20)\d{2}", add_source: bool = True,
+                  two_digit_year_pivot: int = 30,
                   **read_csv_kwargs) -> pd.DataFrame:
     """Load and concatenate multiple CSVs.
 
@@ -149,13 +150,26 @@ def load_all_data(path_or_pattern: str = "backend/data", file_pattern: str = "*.
         if add_source:
             df["source_file"] = os.path.basename(f)
         if year_re:
-            m = year_re.search(os.path.basename(f))
+            base = os.path.basename(f)
+            m = year_re.search(base)
+            year_val: Optional[int] = None
             if m:
-                # take the full match (e.g., 2025)
                 try:
-                    df["year"] = int(m.group(0))
+                    year_val = int(m.group(0))
                 except Exception:
-                    pass
+                    year_val = None
+            # Fallback: try two-digit year (e.g., "24" -> 2024 based on pivot)
+            if year_val is None:
+                m2 = re.search(r"(?<!\d)(\d{2})(?!\d)", base)
+                if m2:
+                    try:
+                        yy = int(m2.group(1))
+                        century = 2000 if yy <= two_digit_year_pivot else 1900
+                        year_val = century + yy
+                    except Exception:
+                        year_val = None
+            if year_val is not None:
+                df["year"] = year_val
         frames.append(df)
 
     # concat, aligning columns

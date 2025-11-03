@@ -98,6 +98,29 @@ def predict_from_csv(input_csv: str, output_csv: str = None, model_path: str = M
 
     df = get_preprocessed_data(input_csv)
 
+    # If 'year' not present, attempt to infer from filename (supports 4-digit or 2-digit years)
+    if "year" not in df.columns:
+        base = os.path.basename(input_csv)
+        import re
+        year_val = None
+        m = re.search(r"(19|20)\d{2}", base)
+        if m:
+            try:
+                year_val = int(m.group(0))
+            except Exception:
+                year_val = None
+        if year_val is None:
+            m2 = re.search(r"(?<!\d)(\d{2})(?!\d)", base)
+            if m2:
+                try:
+                    yy = int(m2.group(1))
+                    pivot = 30
+                    year_val = (2000 if yy <= pivot else 1900) + yy
+                except Exception:
+                    year_val = None
+        if year_val is not None:
+            df["year"] = year_val
+
     # Match training scope by default: filter to ODOT district 6 if column is present
     if odot_district is not None and "odot_district" in df.columns:
         try:

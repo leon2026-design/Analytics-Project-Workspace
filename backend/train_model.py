@@ -51,6 +51,7 @@ FEATURES = [
     "section_length_nbr",
     "median_width_nbr",
     "fwy_art_nbr",
+    "year",
 ]
 
 
@@ -100,8 +101,8 @@ def train_model(data_path: str = DATA_PATH, model_path: str = MODEL_PATH, odot_d
     validate_schema(df, required_columns=[TARGET] + available_features)
     df = coerce_numeric(df, available_features + [TARGET])
 
-    # 2b. Drop rows with missing target or features
-    df = df.dropna(subset=[TARGET] + available_features)
+    # 2b. Drop rows with missing target only; let the imputer handle missing features
+    df = df.dropna(subset=[TARGET])
 
     # 3. Define X, y
     X = df[available_features]
@@ -145,11 +146,29 @@ def train_model(data_path: str = DATA_PATH, model_path: str = MODEL_PATH, odot_d
         xgb = pipeline.named_steps.get("xgb")
         if xgb is not None and hasattr(xgb, "feature_importances_"):
             importances = np.array(xgb.feature_importances_, dtype=float)
+            names = list(available_features)
+            # Try to use model's view of feature names/count when possible
+            model_names = None
+            if hasattr(xgb, "feature_names_in_"):
+                try:
+                    model_names = list(xgb.feature_names_in_)
+                except Exception:
+                    model_names = None
+            if model_names and len(model_names) == len(importances):
+                names = model_names
+            # Align lengths defensively
+            if len(names) != len(importances):
+                if len(names) > len(importances):
+                    names = names[: len(importances)]
+                else:
+                    # pad synthetic names if fewer names than importances
+                    pad = [f"feat_{i}" for i in range(len(importances) - len(names))]
+                    names = names + pad
             fi_dir = Path(MODEL_DIR)
             fi_dir.mkdir(parents=True, exist_ok=True)
             # Save CSV
             fi_df = pd.DataFrame({
-                "feature": available_features,
+                "feature": names,
                 "importance": importances,
             }).sort_values("importance", ascending=False)
             fi_csv_path = fi_dir / "feature_importances.csv"
