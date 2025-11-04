@@ -12,6 +12,7 @@ from typing import Union, Dict, Any
 from sklearn.metrics import mean_absolute_error, r2_score
 
 from backend.preprocessing import get_preprocessed_data, coerce_numeric
+import numpy as np
 
 # Default paths
 MODEL_PATH = "backend/models/traffic_model.pkl"
@@ -55,8 +56,10 @@ def _ensure_feature_columns(df: pd.DataFrame, features: list[str]) -> pd.DataFra
     df = df.copy()
     for col in features:
         if col not in df.columns:
-            df[col] = pd.NA
-    # Order columns to match training order (some estimators care about order)
+            # Use np.nan (not pandas.NA) so sklearn imputers handle it
+            df[col] = np.nan
+    # Replace any pandas.NA with np.nan to be sklearn-friendly
+    df[features] = df[features].replace({pd.NA: np.nan})
     return df
 
 
@@ -101,16 +104,26 @@ def predict_from_csv(input_csv: str, output_csv: str = None, model_path: str = M
     # If 'year' not present, attempt to infer from filename (supports 4-digit or 2-digit years)
     if "year" not in df.columns:
         base = os.path.basename(input_csv)
+        stem, _ext = os.path.splitext(base)
         import re
         year_val = None
-        m = re.search(r"(19|20)\d{2}", base)
+        m = re.search(r"(19|20)\d{2}", stem)
         if m:
             try:
                 year_val = int(m.group(0))
             except Exception:
                 year_val = None
         if year_val is None:
-            m2 = re.search(r"(?<!\d)(\d{2})(?!\d)", base)
+            m_start = re.match(r"^(\d{2})(?!\d)", stem)
+            if m_start:
+                try:
+                    yy = int(m_start.group(1))
+                    pivot = 30
+                    year_val = (2000 if yy <= pivot else 1900) + yy
+                except Exception:
+                    year_val = None
+        if year_val is None:
+            m2 = re.search(r"(?<!\d)(\d{2})(?!\d)", stem)
             if m2:
                 try:
                     yy = int(m2.group(1))

@@ -48,7 +48,36 @@ def clean_data(df: pd.DataFrame, fill_strategy: Optional[str] = "median") -> pd.
     else:
         df.loc[:, numeric_cols] = df.loc[:, numeric_cols].fillna(0)
 
-    # 3. Standardize column names (lowercase, underscores)
+    # 3. Harmonize column names across 2024/2025 schemas before normalization
+    #    Apply a case-insensitive rename using a curated mapping, then normalize.
+    rename_map = {
+        "district": "odot_district",
+        "length": "section_length_nbr",
+        "post spd": "posted_speed_nbr",
+        "ff spd": "ff_speed_nbr",
+        "totlanes": "total_lanes_nbr",
+        "width": "lane_width_nbr",
+        "capacity": "capacity_nbr",
+        "totvolume": "total_volume_nbr",
+        "truckvolume": "truck_volume_nbr",
+        "vmt": "vmt_nbr",
+        "truckvmt": "truck_vmt_nbr",
+        "conindex": "congestion_index_nbr",
+        "cong delay": "congestion_delay_nbr",
+        "delayratio": "delay_ratio_nbr",
+        "cargrowrate": "car_growth_nbr",
+        "truckgrowrate": "truck_growth_nbr",
+    }
+    # Build a mapping from actual column name -> standardized name using lowercase key matching
+    lower_to_actual = {str(c).strip().lower(): c for c in df.columns}
+    actual_renames = {}
+    for k, v in rename_map.items():
+        if k in lower_to_actual:
+            actual_renames[lower_to_actual[k]] = v
+    if actual_renames:
+        df = df.rename(columns=actual_renames)
+
+    # 4. Standardize column names (lowercase, underscores)
     df.columns = [str(col).strip().lower().replace(" ", "_") for col in df.columns]
 
     return df
@@ -151,16 +180,27 @@ def load_all_data(path_or_pattern: str = "backend/data", file_pattern: str = "*.
             df["source_file"] = os.path.basename(f)
         if year_re:
             base = os.path.basename(f)
-            m = year_re.search(base)
+            stem, _ext = os.path.splitext(base)
+            m = year_re.search(stem)
             year_val: Optional[int] = None
             if m:
                 try:
                     year_val = int(m.group(0))
                 except Exception:
                     year_val = None
-            # Fallback: try two-digit year (e.g., "24" -> 2024 based on pivot)
+            # Fallback 1: two-digit year at start of filename (e.g., "24Something.csv")
             if year_val is None:
-                m2 = re.search(r"(?<!\d)(\d{2})(?!\d)", base)
+                m_start = re.match(r"^(\d{2})(?!\d)", stem)
+                if m_start:
+                    try:
+                        yy = int(m_start.group(1))
+                        century = 2000 if yy <= two_digit_year_pivot else 1900
+                        year_val = century + yy
+                    except Exception:
+                        year_val = None
+            # Fallback 2: first standalone two-digit token anywhere
+            if year_val is None:
+                m2 = re.search(r"(?<!\d)(\d{2})(?!\d)", stem)
                 if m2:
                     try:
                         yy = int(m2.group(1))
@@ -170,6 +210,9 @@ def load_all_data(path_or_pattern: str = "backend/data", file_pattern: str = "*.
                         year_val = None
             if year_val is not None:
                 df["year"] = year_val
+            else:
+                # Optional: leave year missing if not inferrable; training can impute or ignore
+                pass
         frames.append(df)
 
     # concat, aligning columns
