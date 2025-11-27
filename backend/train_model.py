@@ -11,7 +11,6 @@ from pathlib import Path
 from typing import Optional
 import joblib
 import pandas as pd
-from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_error, r2_score
 from sklearn.pipeline import Pipeline
 from sklearn.impute import SimpleImputer
@@ -49,9 +48,9 @@ FEATURES = [
     "congestion_delay_nbr",
     "delay_ratio_nbr",
     "section_length_nbr",
-    "median_width_nbr",
-    "fwy_art_nbr",
     "year",
+    "year_norm",
+    "year_poly2",
 ]
 
 
@@ -62,7 +61,7 @@ def train_model(data_path: str = DATA_PATH, model_path: str = MODEL_PATH, odot_d
     else:
         df = get_preprocessed_data(data_path)
 
-    # If requested, filter dataset to a specific ODOT district (Columbus = 6)
+    # filter dataset to specific ODOT district to Columbus = 6
     if odot_district is not None:
         col = "odot_district"
         if col in df.columns:
@@ -90,7 +89,7 @@ def train_model(data_path: str = DATA_PATH, model_path: str = MODEL_PATH, odot_d
     except Exception:
         df.to_csv(processed_path, index=False)
 
-    # 2. Ensure schema + numeric and coerce (robust to missing requested features)
+    # 2. Ensure schema + numeric and coerce
     available_features = [f for f in FEATURES if f in df.columns]
     missing_features = [f for f in FEATURES if f not in df.columns]
     if missing_features:
@@ -104,12 +103,37 @@ def train_model(data_path: str = DATA_PATH, model_path: str = MODEL_PATH, odot_d
     # 2b. Drop rows with missing target only; let the imputer handle missing features
     df = df.dropna(subset=[TARGET])
 
-    # 3. Define X, y
-    X = df[available_features]
-    y = df[TARGET]
+    # 3. Year restriction (keep only rows >=2019 to reduce drift/noise from older years)
+    if "year" in df.columns:
+        yr_num_tmp = pd.to_numeric(df["year"], errors="coerce")
+        before_year_filter = len(df)
+        df = df[yr_num_tmp >= 2019]
+        after_year_filter = len(df)
+        if after_year_filter == 0:
+            raise ValueError("All rows removed by year >=2019 filter; check year parsing.")
+        # Optional log
+        print(f"Year filter >=2019: {before_year_filter} -> {after_year_filter} rows")
 
-    # 4. Train/test split
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    # 4. Time-based split & sample weights
+    if "year" not in df.columns:
+        raise ValueError("Year column missing; cannot perform time-based split. Ensure 'year' is present in FEATURES and preprocessing.")
+    # Compute sample weights: df["sample_weight"] = df["year"] - 2016
+    year_numeric = pd.to_numeric(df["year"], errors="coerce")
+    df["sample_weight"] = year_numeric - 2016
+
+    # Define train (2019–2023) and test (>=2024) masks
+    train_mask = (year_numeric >= 2019) & (year_numeric <= 2023)
+    test_mask = year_numeric >= 2024
+    train_df = df[train_mask].copy()
+    test_df = df[test_mask].copy()
+    if train_df.empty or test_df.empty:
+        raise ValueError(f"Time-based split produced empty subset(s): train_rows={len(train_df)}, test_rows={len(test_df)}")
+
+    X_train = train_df[available_features]
+    y_train = train_df[TARGET]
+    w_train = train_df["sample_weight"].to_numpy()
+    X_test = test_df[available_features]
+    y_test = test_df[TARGET]
 
     # 5. Build pipeline and train
     pipeline = Pipeline([
@@ -127,7 +151,7 @@ def train_model(data_path: str = DATA_PATH, model_path: str = MODEL_PATH, odot_d
         )),
     ])
     # Fit without early stopping to avoid eval_set transformation mismatch in Pipeline
-    pipeline.fit(X_train, y_train)
+    pipeline.fit(X_train, y_train, xgb__sample_weight=w_train)
 
     # 6. Evaluate
     y_pred = pipeline.predict(X_test)

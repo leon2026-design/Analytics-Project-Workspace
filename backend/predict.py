@@ -11,12 +11,13 @@ import pandas as pd
 from typing import Union, Dict, Any
 from sklearn.metrics import mean_absolute_error, r2_score
 
-from backend.preprocessing import get_preprocessed_data, coerce_numeric
+from backend.preprocessing import load_all_data, coerce_numeric
 import numpy as np
 
 # Default paths
 MODEL_PATH = "backend/models/traffic_model.pkl"
 PREDICTIONS_DIR = "backend/data/predictions"
+DATA_DIR = "backend/data"
 
 # Updated features list — same as train_model.py
 FEATURES = [
@@ -35,9 +36,48 @@ FEATURES = [
     "congestion_delay_nbr",
     "delay_ratio_nbr",
     "section_length_nbr",
-    "median_width_nbr",
-    "fwy_art_nbr",
+    "year",
+    "year_norm",
+    "year_poly2",
 ]
+
+
+def _infer_year_from_path(path: str) -> int | None:
+    """Infer a year value from a filename using 4-digit and 2-digit heuristics."""
+    base = os.path.basename(path)
+    stem, _ext = os.path.splitext(base)
+    import re
+
+    year_val: int | None = None
+    # First, look for a 4-digit year
+    m = re.search(r"(19|20)\d{2}", stem)
+    if m:
+        try:
+            return int(m.group(0))
+        except Exception:
+            year_val = None
+
+    # Fallback: two-digit year at start of filename (e.g., "24CMS.csv")
+    m_start = re.match(r"^(\d{2})(?!\d)", stem)
+    if m_start:
+        try:
+            yy = int(m_start.group(1))
+            pivot = 30
+            return (2000 if yy <= pivot else 1900) + yy
+        except Exception:
+            year_val = None
+
+    # Secondary fallback: first standalone two-digit token anywhere in the stem
+    m2 = re.search(r"(?<!\d)(\d{2})(?!\d)", stem)
+    if m2:
+        try:
+            yy = int(m2.group(1))
+            pivot = 30
+            return (2000 if yy <= pivot else 1900) + yy
+        except Exception:
+            year_val = None
+
+    return year_val
 
 
 def load_model(model_path: str = MODEL_PATH):
@@ -99,40 +139,23 @@ def predict_from_csv(input_csv: str, output_csv: str = None, model_path: str = M
     if not os.path.exists(input_csv):
         raise FileNotFoundError(f"Input CSV not found: {input_csv}")
 
-    df = get_preprocessed_data(input_csv)
+    target_year = _infer_year_from_path(input_csv)
 
-    # If 'year' not present, attempt to infer from filename (supports 4-digit or 2-digit years)
-    if "year" not in df.columns:
-        base = os.path.basename(input_csv)
-        stem, _ext = os.path.splitext(base)
-        import re
-        year_val = None
-        m = re.search(r"(19|20)\d{2}", stem)
-        if m:
-            try:
-                year_val = int(m.group(0))
-            except Exception:
-                year_val = None
-        if year_val is None:
-            m_start = re.match(r"^(\d{2})(?!\d)", stem)
-            if m_start:
-                try:
-                    yy = int(m_start.group(1))
-                    pivot = 30
-                    year_val = (2000 if yy <= pivot else 1900) + yy
-                except Exception:
-                    year_val = None
-        if year_val is None:
-            m2 = re.search(r"(?<!\d)(\d{2})(?!\d)", stem)
-            if m2:
-                try:
-                    yy = int(m2.group(1))
-                    pivot = 30
-                    year_val = (2000 if yy <= pivot else 1900) + yy
-                except Exception:
-                    year_val = None
-        if year_val is not None:
-            df["year"] = year_val
+    # Use the same multi-year dataset as training so lag features remain populated
+    df = load_all_data(DATA_DIR)
+
+    if target_year is not None:
+        if "year" in df.columns:
+            before_year = len(df)
+            df = df[df["year"] == target_year].copy()
+            after_year = len(df)
+            print(f"Filtered to target year {target_year}: {before_year} -> {after_year} rows")
+            if after_year == 0:
+                print(f"Warning: No rows found for target year {target_year} in aggregated dataset.")
+        else:
+            print(f"Warning: Aggregated dataset missing 'year' column; cannot filter to {target_year}.")
+    else:
+        print("Warning: Could not infer target year from filename; using all available years for prediction.")
 
     # Match training scope by default: filter to ODOT district 6 if column is present
     if odot_district is not None and "odot_district" in df.columns:
@@ -193,8 +216,6 @@ if __name__ == "__main__":
         "congestion_delay_nbr": 200,
         "delay_ratio_nbr": 0.15,
         "section_length_nbr": 1.5,
-        "median_width_nbr": 4,
-        "fwy_art_nbr": 1,
     }
  
 
