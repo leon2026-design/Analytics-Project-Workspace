@@ -12,12 +12,14 @@ import plotly.express as px
 import plotly.graph_objects as go
 from dash import Dash, dcc, html, Input, Output, State, callback, dash_table
 import dash_bootstrap_components as dbc
+import dash_leaflet as dl
 
 # ============================================================================
 # CONFIGURATION
 # ============================================================================
 
-DATA_DIR = Path("backend/data/predictions")
+# Use absolute path from project root (parent of app/ directory)
+DATA_DIR = Path(__file__).parent.parent / "backend" / "data" / "predictions"
 SCENARIOS_DIR = DATA_DIR / "scenarios"
 
 SCENARIO_OPTIONS = [
@@ -45,11 +47,18 @@ def load_scenario_data(scenario_name):
     file_path = SCENARIOS_DIR / f"predicted_cms_2026_{scenario_name}.csv"
     if file_path.exists():
         return pd.read_csv(file_path)
+    else:
+        print(f"⚠️  File not found: {file_path}")
     return pd.DataFrame()
 
 def load_all_scenarios():
     """Load all scenario data into a dictionary."""
     scenarios = {}
+    print(f"Looking for scenarios in: {SCENARIOS_DIR}")
+    print(f"Directory exists: {SCENARIOS_DIR.exists()}")
+    if SCENARIOS_DIR.exists():
+        print(f"Files in directory: {list(SCENARIOS_DIR.glob('*.csv'))}")
+    
     for option in SCENARIO_OPTIONS:
         scenarios[option['value']] = load_scenario_data(option['value'])
     return scenarios
@@ -295,6 +304,27 @@ app.layout = html.Div([
         
         # Download Component
         dcc.Download(id="download-csv"),
+        
+        # Leaflet Map of Columbus
+        dbc.Row([
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardHeader(html.H5("Columbus District 6 Interactive Map", className="mb-0")),
+                    dbc.CardBody([
+                        dl.Map(
+                            id="columbus-leaflet-map",
+                            style={'width': '100%', 'height': '500px'},
+                            center=[39.9612, -82.9988],
+                            zoom=12,
+                            children=[
+                                dl.TileLayer(),  # OpenStreetMap default
+                                html.Div(id='map-markers')  # Placeholder for dynamic markers
+                            ]
+                        )
+                    ])
+                ])
+            ])
+        ], className="mb-4"),
         
         # Footer
         dbc.Row([
@@ -636,6 +666,62 @@ def download_data(n_clicks, scenario, threshold, route_search):
     filename += ".csv"
     
     return dcc.send_data_frame(filtered.to_csv, filename, index=False)
+
+
+@callback(
+    Output("map-markers", "children"),
+    [Input("scenario-dropdown", "value"),
+     Input("growth-slider", "value")]
+)
+
+def update_leaflet_map(scenario, threshold):
+    """Update map markers based on scenario and threshold."""
+    df = SCENARIOS_DATA.get(scenario, pd.DataFrame())
+    
+    if df.empty:
+        # Just return district center marker if no data
+        return [
+            dl.Marker(position=[39.9612, -82.9988], children=[
+                dl.Popup("Columbus District 6")
+            ]),
+        ]
+    
+    # Filter for high-growth segments
+    high_growth = df[df['predicted_car_growth_nbr'] >= threshold].copy()
+    
+    markers = []
+    
+    # Add high-growth segment markers if location data exists
+    if 'latitude' in high_growth.columns and 'longitude' in high_growth.columns:
+        high_growth = high_growth.dropna(subset=['latitude', 'longitude'])
+        
+        for idx, row in high_growth.head(100).iterrows():  # Limit to 100 for performance
+            color = 'red' if row['predicted_car_growth_nbr'] > 1.0 else 'orange'
+            markers.append(
+                dl.Marker(
+                    position=[row['latitude'], row['longitude']],
+                    children=[
+                        dl.Popup(
+                            html.Div([
+                                html.Strong(f"Route {row['route_nbr']}"),
+                                html.Br(),
+                                f"Growth: {row['predicted_car_growth_nbr']:.3f}x",
+                                html.Br(),
+                                f"Volume: {row.get('total_volume_nbr', 'N/A'):,}"
+                            ])
+                        )
+                    ]
+                )
+            )
+    
+    # Add district center marker
+    markers.append(
+        dl.Marker(position=[39.9612, -82.9988], children=[
+            dl.Popup("Columbus District 6 Center")
+        ])
+    )
+    
+    return markers
 
 
 # ============================================================================
