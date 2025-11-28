@@ -47,8 +47,7 @@ def load_scenario_data(scenario_name):
     file_path = SCENARIOS_DIR / f"predicted_cms_2026_{scenario_name}.csv"
     if file_path.exists():
         return pd.read_csv(file_path)
-    else:
-        print(f"⚠️  File not found: {file_path}")
+    print(f"⚠️  File not found: {file_path}")
     return pd.DataFrame()
 
 def load_all_scenarios():
