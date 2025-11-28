@@ -707,7 +707,7 @@ def update_leaflet_map(scenario, threshold):
                                 html.Br(),
                                 f"Growth: {row['predicted_car_growth_nbr']:.3f}x",
                                 html.Br(),
-                                f"Volume: {row.get('total_volume_nbr', 'N/A'):,}"
+                                f"Volume: {row['total_volume_nbr']:,}" if pd.notna(row.get('total_volume_nbr')) else "Volume: N/A"
                             ])
                         )
                     ]
