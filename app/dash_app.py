@@ -137,10 +137,11 @@ def create_scenario_selector(dropdown_id="scenario-dropdown"):
                 options=SCENARIO_OPTIONS,
                 value="baseline",
                 clearable=False,
-                className="mt-2"
+                className="mt-2",
+                style={'zIndex': 1000}
             )
-        ])
-    ])
+        ], style={'overflow': 'visible'})
+    ], style={'overflow': 'visible', 'zIndex': 100})
 
 def create_stats_card(title, value, icon, color="primary"):
     """Create a statistics card."""
@@ -372,7 +373,7 @@ app.layout = html.Div([
                         html.I(className="fas fa-code me-1"),
                         "Built with Python, Dash & Plotly | ",
                         html.I(className="fas fa-graduation-cap me-1"),
-                        "Ohio State University Analytics Project"
+                        "BDAA Analytics & Visualization Project"
                     ], className="text-center text-muted small")
                 ], style={'padding': '1rem 0'})
             ])
@@ -486,6 +487,21 @@ def update_dashboard(scenario, threshold, route_search):
     ])
     
     # Create scatter chart with categorical functional classes
+    # Custom color palette with high contrast colors
+    custom_colors = [
+        '#667eea',  # Purple-blue (Interstate)
+        '#48bb78',  # Green (Principal Arterial)
+        '#f6ad55',  # Orange (Minor Arterial)
+        '#fc8181',  # Red (Major Collector)
+        '#4299e1',  # Light Blue (Minor Collector)
+        '#9f7aea',  # Purple (Local Road)
+        '#ed64a6',  # Pink (Interstate Urban)
+        '#38b2ac',  # Teal (Principal Arterial Urban)
+        '#ed8936',  # Dark Orange (Minor Arterial Urban - better contrast)
+        '#e53e3e',  # Dark Red (Collector Urban)
+        '#805ad5'   # Deep Purple (Local Urban)
+    ]
+    
     scatter_fig = px.scatter(
         filtered,
         x='total_volume_nbr',
@@ -504,7 +520,7 @@ def update_dashboard(scenario, threshold, route_search):
             'functional_class_label': 'Highway Type'
         },
         title=f"{scenario.replace('_', ' ').title()} Scenario",
-        color_discrete_sequence=px.colors.qualitative.Set3
+        color_discrete_sequence=custom_colors
     )
     scatter_fig.update_layout(
         hovermode='closest',

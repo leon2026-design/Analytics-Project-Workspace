@@ -120,6 +120,52 @@ h2 {
     border-color: #667eea !important;
 }
 
+/* Fix dropdown menu z-index and scrolling */
+.Select-menu-outer {
+    z-index: 9999 !important;
+    max-height: 300px !important;
+    overflow-y: auto !important;
+    border-radius: 10px !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2) !important;
+    border: 2px solid #e2e8f0 !important;
+}
+
+.Select-menu {
+    max-height: 280px !important;
+    overflow-y: auto !important;
+}
+
+/* Dash dropdown (dcc.Dropdown) specific fixes */
+.dash-dropdown {
+    position: relative !important;
+    z-index: 100 !important;
+}
+
+.dash-dropdown .Select-menu-outer {
+    z-index: 9999 !important;
+    position: absolute !important;
+}
+
+/* Modern dropdown option styling */
+.Select-option {
+    padding: 12px 15px !important;
+    cursor: pointer !important;
+    transition: background-color 0.2s ease !important;
+}
+
+.Select-option:hover {
+    background-color: #f8f9ff !important;
+}
+
+.Select-option.is-selected {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    color: white !important;
+}
+
+.Select-option.is-focused {
+    background-color: #f0f4ff !important;
+}
+
 /* Form controls */
 input.form-control {
     border-radius: 10px !important;
