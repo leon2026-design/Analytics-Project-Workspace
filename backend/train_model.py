@@ -224,7 +224,7 @@ def train_model(data_path: str = DATA_PATH, model_path: str = MODEL_PATH, odot_d
         "data_path": data_path,
         "processed_path": processed_path,
         "model_path": model_path,
-    "features": ";".join(available_features),
+        "features": ";".join(available_features),
         "target": TARGET,
         "odot_district": odot_district,
         "mae": mae,

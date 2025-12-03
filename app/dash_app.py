@@ -31,11 +31,27 @@ SCENARIO_OPTIONS = [
 ]
 
 COLORS = {
-    'primary': '#1f77b4',
-    'success': '#2ca02c',
-    'warning': '#ff7f0e',
-    'danger': '#d62728',
-    'info': '#17a2b8'
+    'primary': '#667eea',
+    'success': '#48bb78',
+    'warning': '#f6ad55',
+    'danger': '#fc8181',
+    'info': '#4299e1',
+    'purple': '#764ba2'
+}
+
+# Functional Class mapping (FHWA Highway Functional Classification)
+FUNCTIONAL_CLASS_LABELS = {
+    1: 'Interstate',
+    2: 'Principal Arterial',
+    3: 'Minor Arterial',
+    4: 'Major Collector',
+    5: 'Minor Collector',
+    6: 'Local Road',
+    11: 'Interstate (Urban)',
+    12: 'Principal Arterial (Urban)',
+    13: 'Minor Arterial (Urban)',
+    14: 'Collector (Urban)',
+    15: 'Local (Urban)'
 }
 
 # ============================================================================
@@ -76,9 +92,14 @@ print("Data loading complete!")
 
 app = Dash(
     __name__,
-    external_stylesheets=[dbc.themes.BOOTSTRAP, dbc.icons.FONT_AWESOME],
+    external_stylesheets=[
+        dbc.themes.BOOTSTRAP,
+        dbc.icons.FONT_AWESOME,
+        'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap'
+    ],
     suppress_callback_exceptions=True,
-    title="Columbus Traffic Predictor"
+    title="CTForecast - Columbus Traffic Predictor",
+    meta_tags=[{'name': 'viewport', 'content': 'width=device-width, initial-scale=1.0'}]
 )
 
 server = app.server  # For deployment
@@ -94,8 +115,9 @@ def create_navbar():
             dbc.Row([
                 dbc.Col([
                     html.Div([
-                        html.I(className="fas fa-traffic-light me-2"),
-                        dbc.NavbarBrand("Columbus Traffic Growth Predictor", className="ms-2")
+                        html.I(className="fas fa-traffic-light me-2", style={'color': 'indigo'}),
+                        dbc.NavbarBrand("CTForecast", className="ms-2", style={'color': 'indigo'}),
+                        html.Span(" | Columbus Traffic Predictor", className="ms-2", style={'fontSize': '0.9rem', 'color': 'rgba(75, 0, 130, 0.8)'})
                     ])
                 ], width="auto"),
             ], align="center", className="g-0")
@@ -125,14 +147,16 @@ def create_stats_card(title, value, icon, color="primary"):
     return dbc.Card([
         dbc.CardBody([
             html.Div([
-                html.I(className=f"fas {icon} fa-2x", style={'color': COLORS[color]}),
                 html.Div([
-                    html.H6(title, className="text-muted mb-0"),
-                    html.H3(value, className="mb-0")
-                ], className="ms-3")
-            ], className="d-flex align-items-center")
-        ])
-    ], className="mb-3")
+                    html.I(className=f"fas {icon} fa-3x mb-2", style={'color': COLORS[color]}),
+                ], style={'textAlign': 'center'}),
+                html.Div([
+                    html.H6(title, className="text-muted mb-1", style={'fontSize': '0.85rem', 'textAlign': 'center'}),
+                    html.H2(value, className="mb-0", style={'fontWeight': '700', 'textAlign': 'center'})
+                ])
+            ])
+        ], style={'padding': '1.5rem'})
+    ], className="mb-3", style={'height': '100%'})
 
 # ============================================================================
 # MAIN LAYOUT
@@ -145,12 +169,18 @@ app.layout = html.Div([
         # Header Section
         dbc.Row([
             dbc.Col([
-                html.H2("2026 Traffic Growth Scenarios - District 6"),
-                html.P(
-                    "Explore predictions for 3,570 road segments across five growth scenarios. "
-                    "Model trained on 2019-2023 data, validated on 2024.",
-                    className="text-muted"
-                )
+                html.Div([
+                    html.H2([
+                        html.I(className="fas fa-chart-line me-3", style={'color': '#667eea'}),
+                        "2026 Traffic Growth Scenarios"
+                    ]),
+                    html.P(
+                        "Explore AI-powered predictions for 3,570 road segments across Columbus District 6. "
+                        "Machine learning model trained on 5 years of ODOT data (2019-2024).",
+                        className="text-muted",
+                        style={'fontSize': '1.05rem'}
+                    )
+                ], style={'textAlign': 'center', 'padding': '2rem 0'})
             ])
         ], className="mb-4"),
         
@@ -329,10 +359,22 @@ app.layout = html.Div([
         dbc.Row([
             dbc.Col([
                 html.Hr(),
-                html.P(
-                    "Columbus Traffic Growth Predictor | Model: XGBoost (R²=0.304) | Data: ODOT CMS 2019-2024",
-                    className="text-center text-muted small"
-                )
+                html.Div([
+                    html.P([
+                        html.Strong("CTForecast"),
+                        " - Powered by XGBoost ML (R²=0.304) | ",
+                        html.I(className="fas fa-database me-1"),
+                        "ODOT CMS 2019-2024 | ",
+                        html.I(className="fas fa-map-marked-alt me-1"),
+                        "3,570 Road Segments"
+                    ], className="text-center text-muted small mb-2"),
+                    html.P([
+                        html.I(className="fas fa-code me-1"),
+                        "Built with Python, Dash & Plotly | ",
+                        html.I(className="fas fa-graduation-cap me-1"),
+                        "Ohio State University Analytics Project"
+                    ], className="text-center text-muted small")
+                ], style={'padding': '1rem 0'})
             ])
         ])
         
@@ -392,6 +434,9 @@ def update_dashboard(scenario, threshold, route_search):
     # Filter by threshold
     filtered = df[df['predicted_car_growth_nbr'] >= threshold].copy()
     
+    # Add functional class labels for better visualization
+    filtered['functional_class_label'] = filtered['functional_class_cd'].map(FUNCTIONAL_CLASS_LABELS)
+    
     # Filter by route if search provided
     if route_search and route_search.strip():
         route_search = route_search.strip()
@@ -440,41 +485,96 @@ def update_dashboard(scenario, threshold, route_search):
         ), md=3),
     ])
     
-    # Create scatter chart
+    # Create scatter chart with categorical functional classes
     scatter_fig = px.scatter(
         filtered,
         x='total_volume_nbr',
         y='predicted_car_growth_nbr',
-        color='functional_class_cd',
-        hover_data=['route_nbr', 'section_length_nbr', 'capacity_nbr'],
+        color='functional_class_label',
+        hover_data={
+            'route_nbr': True,
+            'section_length_nbr': ':.2f',
+            'capacity_nbr': ':,',
+            'functional_class_cd': True,
+            'functional_class_label': False  # Already in color legend
+        },
         labels={
             'total_volume_nbr': 'Traffic Volume',
             'predicted_car_growth_nbr': 'Predicted Car Growth',
-            'functional_class_cd': 'Functional Class'
+            'functional_class_label': 'Highway Type'
         },
-        title=f"{scenario.replace('_', ' ').title()} Scenario"
+        title=f"{scenario.replace('_', ' ').title()} Scenario",
+        color_discrete_sequence=px.colors.qualitative.Set3
     )
     scatter_fig.update_layout(
         hovermode='closest',
         template='plotly_white',
-        margin=dict(l=20, r=20, t=40, b=20)
+        margin=dict(l=20, r=20, t=40, b=20),
+        legend=dict(
+            title_text='Highway Type',
+            orientation='v',
+            yanchor='top',
+            y=1,
+            xanchor='left',
+            x=1.02,
+            bgcolor='rgba(255,255,255,0.9)',
+            bordercolor='#e2e8f0',
+            borderwidth=1
+        ),
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        font=dict(family='Inter, sans-serif', size=12),
+        xaxis=dict(
+            gridcolor='#f0f0f0',
+            showgrid=True,
+            zeroline=False
+        ),
+        yaxis=dict(
+            gridcolor='#f0f0f0',
+            showgrid=True,
+            zeroline=False
+        )
     )
     
-    # Create histogram
+    # Create histogram with gradient color
     hist_fig = px.histogram(
         filtered,
         x='predicted_car_growth_nbr',
         nbins=40,
         labels={'predicted_car_growth_nbr': 'Car Growth'},
-        color_discrete_sequence=[COLORS['primary']]
+        color_discrete_sequence=['#667eea']
     )
-    hist_fig.add_vline(x=1.0, line_dash="dash", line_color="red",
-                       annotation_text="100% Growth Threshold")
+    hist_fig.add_vline(
+        x=1.0, 
+        line_dash="dash", 
+        line_color="#fc8181",
+        line_width=3,
+        annotation_text="Critical Threshold",
+        annotation_position="top",
+        annotation=dict(
+            font=dict(size=12, color='#fc8181', family='Inter, sans-serif'),
+            bgcolor='rgba(252,129,129,0.1)',
+            bordercolor='#fc8181',
+            borderwidth=1
+        )
+    )
     hist_fig.update_layout(
         showlegend=False,
         template='plotly_white',
-        margin=dict(l=20, r=20, t=20, b=20)
+        margin=dict(l=20, r=20, t=20, b=20),
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        font=dict(family='Inter, sans-serif', size=12),
+        xaxis=dict(
+            gridcolor='#f0f0f0',
+            showgrid=True
+        ),
+        yaxis=dict(
+            gridcolor='#f0f0f0',
+            showgrid=True
+        )
     )
+    hist_fig.update_traces(marker=dict(line=dict(color='#5568d3', width=1)))
     
     # Create data table with better column names and descriptions
     table_df = filtered[[
@@ -633,8 +733,22 @@ def update_comparison(scenarios, threshold, route_search):
         title='Scenario Comparison',
         xaxis_title='Metric',
         yaxis_title='Value',
-        legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1),
-        margin=dict(l=20, r=20, t=60, b=20)
+        legend=dict(
+            orientation='h', 
+            yanchor='bottom', 
+            y=1.02, 
+            xanchor='right', 
+            x=1,
+            bgcolor='rgba(255,255,255,0.9)',
+            bordercolor='#e2e8f0',
+            borderwidth=1
+        ),
+        margin=dict(l=20, r=20, t=60, b=20),
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        font=dict(family='Inter, sans-serif', size=12),
+        xaxis=dict(gridcolor='#f0f0f0'),
+        yaxis=dict(gridcolor='#f0f0f0', showgrid=True)
     )
     
     return stats_cards, fig
@@ -672,7 +786,6 @@ def download_data(n_clicks, scenario, threshold, route_search):
     [Input("scenario-dropdown", "value"),
      Input("growth-slider", "value")]
 )
-
 def update_leaflet_map(scenario, threshold):
     """Update map markers based on scenario and threshold."""
     df = SCENARIOS_DATA.get(scenario, pd.DataFrame())

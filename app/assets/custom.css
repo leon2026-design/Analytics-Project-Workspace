@@ -1,0 +1,296 @@
+/* CTForecast - Custom Styling */
+
+/* Import modern font */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+/* Global styles */
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background-attachment: fixed;
+}
+
+/* Main container with glass effect */
+.container-fluid {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 20px;
+    padding: 2rem !important;
+    margin-top: 1rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+/* Enhanced navbar */
+.navbar {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    border-radius: 15px !important;
+    box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+    margin-bottom: 2rem !important;
+    padding: 1rem 2rem !important;
+}
+
+.navbar-brand {
+    font-size: 1.5rem !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.5px;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.navbar .fa-traffic-light {
+    font-size: 1.8rem;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
+/* Header section */
+h2 {
+    font-weight: 700;
+    color: #2d3748;
+    margin-bottom: 0.5rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* Card enhancements */
+.card {
+    border: none !important;
+    border-radius: 15px !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08) !important;
+    transition: all 0.3s ease !important;
+    overflow: hidden;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 12px 30px rgba(102, 126, 234, 0.2) !important;
+}
+
+.card-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    color: white !important;
+    border: none !important;
+    font-weight: 600 !important;
+    padding: 1rem 1.5rem !important;
+}
+
+.card-body {
+    padding: 1.5rem !important;
+}
+
+/* Stats cards special styling */
+.mb-3 .card {
+    background: linear-gradient(135deg, #f6f8fb 0%, #ffffff 100%);
+    border-left: 4px solid #667eea !important;
+}
+
+.mb-3 .card:hover {
+    border-left-width: 8px !important;
+}
+
+/* Buttons */
+.btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    border: none !important;
+    border-radius: 10px !important;
+    padding: 0.5rem 1.5rem !important;
+    font-weight: 600 !important;
+    transition: all 0.3s ease !important;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3) !important;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4) !important;
+}
+
+/* Dropdown styling */
+.Select-control {
+    border-radius: 10px !important;
+    border: 2px solid #e2e8f0 !important;
+    transition: all 0.3s ease !important;
+}
+
+.Select-control:hover {
+    border-color: #667eea !important;
+}
+
+/* Form controls */
+input.form-control {
+    border-radius: 10px !important;
+    border: 2px solid #e2e8f0 !important;
+    padding: 0.75rem 1rem !important;
+    transition: all 0.3s ease !important;
+}
+
+input.form-control:focus {
+    border-color: #667eea !important;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1) !important;
+}
+
+/* Slider styling */
+.rc-slider-track {
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%) !important;
+}
+
+.rc-slider-handle {
+    border: 3px solid #667eea !important;
+    background-color: white !important;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3) !important;
+}
+
+.rc-slider-handle:hover {
+    transform: scale(1.2);
+}
+
+/* Checkbox styling */
+.form-check-input:checked {
+    background-color: #667eea !important;
+    border-color: #667eea !important;
+}
+
+/* Data table styling */
+.dash-table-container {
+    border-radius: 10px !important;
+    overflow: hidden;
+}
+
+.dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner table {
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+}
+
+.dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner th {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    color: white !important;
+    font-weight: 600 !important;
+    padding: 1rem !important;
+    border: none !important;
+}
+
+.dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner td {
+    padding: 0.75rem 1rem !important;
+    border-bottom: 1px solid #f0f0f0 !important;
+}
+
+.dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner tr:hover {
+    background-color: #f8f9ff !important;
+}
+
+/* Chart containers */
+.js-plotly-plot {
+    border-radius: 10px;
+}
+
+/* Map styling */
+.leaflet-container {
+    border-radius: 10px !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Footer */
+hr {
+    border-top: 2px solid #e2e8f0 !important;
+    margin: 2rem 0 !important;
+}
+
+/* Labels */
+label.fw-bold {
+    color: #2d3748;
+    font-weight: 600 !important;
+    margin-bottom: 0.5rem;
+    font-size: 0.95rem;
+}
+
+/* Icon colors */
+.fa-road { color: #667eea !important; }
+.fa-chart-line { color: #48bb78 !important; }
+.fa-exclamation-triangle { color: #f6ad55 !important; }
+.fa-car { color: #4299e1 !important; }
+
+/* Text muted enhancement */
+.text-muted {
+    color: #718096 !important;
+}
+
+/* Loading states */
+._dash-loading {
+    background: rgba(102, 126, 234, 0.1) !important;
+    border-radius: 10px;
+}
+
+._dash-loading::after {
+    border-top-color: #667eea !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .container-fluid {
+        padding: 1rem !important;
+        border-radius: 10px;
+    }
+    
+    .navbar {
+        padding: 0.75rem 1rem !important;
+    }
+    
+    .card {
+        margin-bottom: 1rem !important;
+    }
+}
+
+/* Animation for page load */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.row {
+    animation: fadeIn 0.5s ease-out;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, #5568d3 0%, #653a8b 100%);
+}
+
+/* Enhanced statistics cards with gradient borders */
+.mb-3 .card .fa-2x {
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+/* Tooltip styling */
+.dash-table-tooltip {
+    background-color: #2d3748 !important;
+    color: white !important;
+    border-radius: 8px !important;
+    padding: 0.5rem 1rem !important;
+    font-size: 0.85rem !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+}

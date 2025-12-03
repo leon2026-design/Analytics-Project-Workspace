@@ -323,8 +323,6 @@ def load_all_data(path_or_pattern: str = "backend/data", file_pattern: str = "*.
                 required_24 = {"jcrl", "a"}
                 required_25 = {"route_nbr"}
                 if required_24.issubset(df24.columns) and required_25.issubset(df25.columns):
-                    from backend.preprocessing import match_cms5_to_cms
-
                     df24_matched = match_cms5_to_cms(df24, df25)
 
                     if "matched_nlfid" in df24_matched.columns:
