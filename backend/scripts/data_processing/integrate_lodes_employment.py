@@ -362,7 +362,7 @@ def integrate_employment_with_traffic():
     
     # Add parent directory to path for imports
     sys.path.insert(0, str(Path(__file__).parent.parent))
-    from backend.preprocessing import load_all_data
+    from backend.core.preprocessing import load_all_data
     
     print("\n" + "="*80)
     print(" "*20 + "LODES EMPLOYMENT INTEGRATION")

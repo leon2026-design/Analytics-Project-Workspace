@@ -60,9 +60,24 @@ FUNCTIONAL_CLASS_LABELS = {
 
 def load_scenario_data(scenario_name):
     """Load prediction data for a specific scenario."""
+    # Try enriched file first (has demographic data)
+    enriched_file = DATA_DIR.parent / "predictions" / "enriched" / f"enriched_predicted_cms_2026_{scenario_name}.csv"
+    if enriched_file.exists():
+        print(f"✓ Loading enriched data from: {enriched_file}")
+        return pd.read_csv(enriched_file, low_memory=False)
+    
+    # Fall back to geocoded file
+    geocoded_file = SCENARIOS_DIR / f"geocoded_predicted_cms_2026_{scenario_name}.csv"
+    if geocoded_file.exists():
+        print(f"✓ Loading geocoded data from: {geocoded_file}")
+        return pd.read_csv(geocoded_file, low_memory=False)
+    
+    # Fall back to original file
     file_path = SCENARIOS_DIR / f"predicted_cms_2026_{scenario_name}.csv"
     if file_path.exists():
+        print(f"⚠ Loading original data from: {file_path}")
         return pd.read_csv(file_path)
+    
     print(f"⚠️  File not found: {file_path}")
     return pd.DataFrame()
 
@@ -205,14 +220,14 @@ app.layout = html.Div([
             dbc.Col([
                 dbc.Card([
                     dbc.CardBody([
-                        html.Label("Car Growth Threshold:", className="fw-bold"),
+                        html.Label("Growth Rate Threshold:", className="fw-bold"),
                         dcc.Slider(
                             id='growth-slider',
                             min=0,
                             max=3,
                             step=0.1,
                             value=1.0,
-                            marks={i: f"{i}x" for i in range(0, 4)},
+                            marks={i: f"{int(i*100)}%" for i in range(0, 4)},
                             tooltip={"placement": "bottom", "always_visible": True}
                         )
                     ])
@@ -339,7 +354,17 @@ app.layout = html.Div([
         dbc.Row([
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader(html.H5("Columbus District 6 Interactive Map", className="mb-0")),
+                    dbc.CardHeader([
+                        html.H5("Columbus District 6 Interactive Map", className="mb-0 d-inline"),
+                        dbc.Checklist(
+                            id="choropleth-toggle",
+                            options=[{"label": " Show Employment Density", "value": "show"}],
+                            value=[],
+                            inline=True,
+                            className="float-end",
+                            switch=True
+                        )
+                    ]),
                     dbc.CardBody([
                         dl.Map(
                             id="columbus-leaflet-map",
@@ -348,6 +373,7 @@ app.layout = html.Div([
                             zoom=12,
                             children=[
                                 dl.TileLayer(),  # OpenStreetMap default
+                                html.Div(id='employment-choropleth'),  # Choropleth layer
                                 html.Div(id='map-markers')  # Placeholder for dynamic markers
                             ]
                         )
@@ -363,7 +389,7 @@ app.layout = html.Div([
                 html.Div([
                     html.P([
                         html.Strong("CTForecast"),
-                        " - Powered by XGBoost ML (R²=0.304) | ",
+                        " - Powered by XGBoost ML (R²=0.701) | ",
                         html.I(className="fas fa-database me-1"),
                         "ODOT CMS 2019-2024 | ",
                         html.I(className="fas fa-map-marked-alt me-1"),
@@ -467,8 +493,8 @@ def update_dashboard(scenario, threshold, route_search):
             "primary"
         ), md=3),
         dbc.Col(create_stats_card(
-            "Avg Car Growth",
-            f"{avg_growth:.3f}x",
+            "Avg Growth Rate",
+            f"{avg_growth*100:.1f}%",
             "fa-chart-line",
             "success"
         ), md=3),
@@ -516,7 +542,7 @@ def update_dashboard(scenario, threshold, route_search):
         },
         labels={
             'total_volume_nbr': 'Traffic Volume',
-            'predicted_car_growth_nbr': 'Predicted Car Growth',
+            'predicted_car_growth_nbr': 'Predicted Growth Rate (%)',
             'functional_class_label': 'Highway Type'
         },
         title=f"{scenario.replace('_', ' ').title()} Scenario",
@@ -557,15 +583,18 @@ def update_dashboard(scenario, threshold, route_search):
         filtered,
         x='predicted_car_growth_nbr',
         nbins=40,
-        labels={'predicted_car_growth_nbr': 'Car Growth'},
+        labels={'predicted_car_growth_nbr': 'Growth Rate (%)'},
         color_discrete_sequence=['#667eea']
+    )
+    hist_fig.update_layout(
+        yaxis_title='Number of Road Segments'
     )
     hist_fig.add_vline(
         x=1.0, 
         line_dash="dash", 
         line_color="#fc8181",
         line_width=3,
-        annotation_text="Critical Threshold",
+        annotation_text="100% Growth (Critical)",
         annotation_position="top",
         annotation=dict(
             font=dict(size=12, color='#fc8181', family='Inter, sans-serif'),
@@ -600,7 +629,7 @@ def update_dashboard(scenario, threshold, route_search):
     
     column_labels = {
         'route_nbr': 'Route',
-        'predicted_car_growth_nbr': 'Car Growth',
+        'predicted_car_growth_nbr': 'Growth Rate',
         'total_volume_nbr': 'Traffic Volume',
         'capacity_nbr': 'Capacity',
         'congestion_index_nbr': 'Congestion',
@@ -630,7 +659,7 @@ def update_dashboard(scenario, threshold, route_search):
         filter_action='native',
         tooltip_header={
             'route_nbr': 'Road/Highway number (e.g., 70 = I-70)',
-            'predicted_car_growth_nbr': 'Predicted growth rate (>1.0 = over capacity)',
+            'predicted_car_growth_nbr': 'Predicted traffic growth rate as decimal (e.g., 0.50 = 50% growth, 1.0 = 100% growth)',
             'total_volume_nbr': 'Current daily traffic volume',
             'capacity_nbr': 'Maximum designed capacity',
             'congestion_index_nbr': 'Congestion level (higher = more congested)',
@@ -713,7 +742,7 @@ def update_comparison(scenarios, threshold, route_search):
                         ], className="text-center mb-2"),
                         html.Div([
                             html.Small("Avg Growth", className="text-muted d-block"),
-                            html.H5(f"{stat['avg_growth']:.3f}x")
+                            html.H5(f"{stat['avg_growth']*100:.1f}%")
                         ], className="text-center mb-2"),
                         html.Div([
                             html.Small("High Growth", className="text-muted d-block"),
@@ -737,9 +766,9 @@ def update_comparison(scenarios, threshold, route_search):
     for stat in stats_data:
         fig.add_trace(go.Bar(
             name=stat['scenario'],
-            x=['Segments', 'Avg Growth', 'High Growth %'],
-            y=[stat['segments'], stat['avg_growth'] * 1000, stat['high_growth_pct']],
-            text=[f"{stat['segments']:,}", f"{stat['avg_growth']:.3f}x", f"{stat['high_growth_pct']:.1f}%"],
+            x=['Segments', 'Avg Growth %', 'High Growth %'],
+            y=[stat['segments'], stat['avg_growth'] * 100, stat['high_growth_pct']],
+            text=[f"{stat['segments']:,}", f"{stat['avg_growth']*100:.1f}%", f"{stat['high_growth_pct']:.1f}%"],
             textposition='auto'
         ))
     
@@ -789,7 +818,7 @@ def download_data(n_clicks, scenario, threshold, route_search):
             filtered['route_nbr'].astype(str).str.contains(route_search.strip(), case=False, na=False)
         ]
     
-    filename = f"columbus_traffic_{scenario}_{threshold}x"
+    filename = f"columbus_traffic_{scenario}_{int(threshold*100)}pct"
     if route_search:
         filename += f"_route{route_search.strip()}"
     filename += ".csv"
@@ -824,21 +853,57 @@ def update_leaflet_map(scenario, threshold):
         high_growth = high_growth.dropna(subset=['latitude', 'longitude'])
         
         for idx, row in high_growth.head(100).iterrows():  # Limit to 100 for performance
-            color = 'red' if row['predicted_car_growth_nbr'] > 1.0 else 'orange'
+            # Color code by growth intensity
+            growth_pct = row['predicted_car_growth_nbr']
+            if growth_pct > 1.0:
+                color = 'red'
+            elif growth_pct > 0.5:
+                color = 'orange'
+            elif growth_pct > 0.2:
+                color = 'yellow'
+            else:
+                color = 'green'
+            
+            # Build popup with demographic info if available
+            popup_elements = [
+                html.Strong(f"Route {row['route_nbr']}"),
+                html.Br(),
+                f"Growth: {growth_pct*100:.1f}%",
+                html.Br(),
+                f"Volume: {row['total_volume_nbr']:,}" if pd.notna(row.get('total_volume_nbr')) else "Volume: N/A"
+            ]
+            
+            # Add demographic data if available
+            if 'jobs_within_2mi' in row and pd.notna(row['jobs_within_2mi']):
+                popup_elements.extend([
+                    html.Hr(style={'margin': '5px 0'}),
+                    html.Strong("Employment:"),
+                    html.Br(),
+                    f"Jobs within 2mi: {int(row['jobs_within_2mi']):,}"
+                ])
+            
+            if 'distance_to_downtown' in row and pd.notna(row['distance_to_downtown']):
+                popup_elements.extend([
+                    html.Br(),
+                    f"Distance to downtown: {row['distance_to_downtown']:.1f} mi"
+                ])
+            
+            if 'area_type' in row and pd.notna(row['area_type']):
+                popup_elements.extend([
+                    html.Br(),
+                    f"Area: {row['area_type']}"
+                ])
+            
+            if 'C000' in row and pd.notna(row['C000']):
+                popup_elements.extend([
+                    html.Br(),
+                    f"Tract jobs: {int(row['C000']):,}"
+                ])
+            
             markers.append(
                 dl.Marker(
                     position=[row['latitude'], row['longitude']],
-                    children=[
-                        dl.Popup(
-                            html.Div([
-                                html.Strong(f"Route {row['route_nbr']}"),
-                                html.Br(),
-                                f"Growth: {row['predicted_car_growth_nbr']:.3f}x",
-                                html.Br(),
-                                f"Volume: {row['total_volume_nbr']:,}" if pd.notna(row.get('total_volume_nbr')) else "Volume: N/A"
-                            ])
-                        )
-                    ]
+                    children=[dl.Popup(html.Div(popup_elements))]
                 )
             )
     
@@ -850,6 +915,127 @@ def update_leaflet_map(scenario, threshold):
     )
     
     return markers
+
+
+@callback(
+    Output("employment-choropleth", "children"),
+    [Input("choropleth-toggle", "value")]
+)
+def update_choropleth_layer(toggle_value):
+    """Show/hide employment density choropleth layer."""
+    import json
+    
+    if not toggle_value or "show" not in toggle_value:
+        return []  # Return empty if toggle is off
+    
+    # Load GeoJSON data
+    geojson_path = Path(__file__).parent.parent / "backend" / "data" / "census_tracts" / "franklin_tracts_employment.geojson"
+    
+    try:
+        with open(geojson_path, 'r') as f:
+            geojson_data = json.load(f)
+        
+        # Define color scale function for employment density
+        def get_color(emp_density):
+            """Return color based on employment density."""
+            if emp_density is None or emp_density == 0:
+                return '#f0f0f0'
+            elif emp_density < 500:
+                return '#deebf7'
+            elif emp_density < 1000:
+                return '#c6dbef'
+            elif emp_density < 2000:
+                return '#9ecae1'
+            elif emp_density < 5000:
+                return '#6baed6'
+            elif emp_density < 10000:
+                return '#3182bd'
+            else:
+                return '#08519c'
+        
+        # Create polygon layers for each census tract
+        polygons = []
+        for feature in geojson_data['features']:
+            props = feature.get('properties', {})
+            emp_density = props.get('emp_density', 0)
+            total_jobs = props.get('C000', 0)
+            tract_name = props.get('NAME', 'Unknown')
+            
+            # Get coordinates - handle both Polygon and MultiPolygon
+            geom = feature['geometry']
+            if geom['type'] == 'Polygon':
+                coords_list = [geom['coordinates']]
+            elif geom['type'] == 'MultiPolygon':
+                coords_list = geom['coordinates']
+            else:
+                continue
+            
+            # Create polygon for each part
+            for coords in coords_list:
+                # Convert from [lon, lat] to [lat, lon] for Leaflet
+                positions = [[[coord[1], coord[0]] for coord in ring] for ring in coords]
+                
+                polygon = dl.Polygon(
+                    positions=positions,
+                    color='white',
+                    weight=1,
+                    fillColor=get_color(emp_density),
+                    fillOpacity=0.6,
+                    children=[
+                        dl.Tooltip(f"Tract {tract_name}: {int(total_jobs):,} jobs ({emp_density:.0f} jobs/sqmi)")
+                    ]
+                )
+                polygons.append(polygon)
+        
+        # Create layer group with polygons and legend
+        legend = html.Div([
+            html.Div([
+                html.Strong("Employment Density", style={'fontSize': '12px'}),
+                html.Div("(jobs per sq mi)", style={'fontSize': '10px', 'fontStyle': 'italic'})
+            ], style={'marginBottom': '5px'}),
+            html.Div([
+                html.Div(style={'backgroundColor': '#08519c', 'width': '20px', 'height': '15px', 'display': 'inline-block'}),
+                html.Span(" 10,000+", style={'fontSize': '10px', 'marginLeft': '5px'})
+            ]),
+            html.Div([
+                html.Div(style={'backgroundColor': '#3182bd', 'width': '20px', 'height': '15px', 'display': 'inline-block'}),
+                html.Span(" 5,000-10,000", style={'fontSize': '10px', 'marginLeft': '5px'})
+            ]),
+            html.Div([
+                html.Div(style={'backgroundColor': '#6baed6', 'width': '20px', 'height': '15px', 'display': 'inline-block'}),
+                html.Span(" 2,000-5,000", style={'fontSize': '10px', 'marginLeft': '5px'})
+            ]),
+            html.Div([
+                html.Div(style={'backgroundColor': '#9ecae1', 'width': '20px', 'height': '15px', 'display': 'inline-block'}),
+                html.Span(" 1,000-2,000", style={'fontSize': '10px', 'marginLeft': '5px'})
+            ]),
+            html.Div([
+                html.Div(style={'backgroundColor': '#c6dbef', 'width': '20px', 'height': '15px', 'display': 'inline-block'}),
+                html.Span(" 500-1,000", style={'fontSize': '10px', 'marginLeft': '5px'})
+            ]),
+            html.Div([
+                html.Div(style={'backgroundColor': '#deebf7', 'width': '20px', 'height': '15px', 'display': 'inline-block'}),
+                html.Span(" 0-500", style={'fontSize': '10px', 'marginLeft': '5px'})
+            ])
+        ], style={
+            'position': 'absolute',
+            'bottom': '30px',
+            'right': '10px',
+            'backgroundColor': 'white',
+            'padding': '10px',
+            'border': '2px solid rgba(0,0,0,0.2)',
+            'borderRadius': '5px',
+            'zIndex': '1000',
+            'fontSize': '11px'
+        })
+        
+        return polygons + [legend]
+        
+    except Exception as e:
+        print(f"Error loading choropleth: {e}")
+        import traceback
+        traceback.print_exc()
+        return []
 
 
 # ============================================================================

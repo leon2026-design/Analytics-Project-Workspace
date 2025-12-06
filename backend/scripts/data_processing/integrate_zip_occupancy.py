@@ -240,7 +240,7 @@ def assign_zip_to_segments(df, route_zip_map, default_zips):
 
 def integrate_zip_occupancy():
     """Main integration function."""
-    from backend.preprocessing import load_all_data
+    from backend.core.preprocessing import load_all_data
     
     print("="*70)
     print("ZIP-LEVEL OCCUPANCY DATA INTEGRATION")

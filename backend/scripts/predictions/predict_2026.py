@@ -1,8 +1,8 @@
 import os
 import pandas as pd
 
-from backend.predict import predict_from_dataframe
-from backend.preprocessing import load_all_data, recompute_2026_time_features
+from backend.core.predict import predict_from_dataframe
+from backend.core.preprocessing import load_all_data, recompute_2026_time_features
 
 
 def main() -> None:

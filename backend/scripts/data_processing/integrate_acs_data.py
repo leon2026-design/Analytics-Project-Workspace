@@ -136,7 +136,7 @@ def load_all_acs_demographics():
 
 def integrate_demographics_into_traffic():
     """Merge ACS demographics with traffic data and save enriched dataset."""
-    from backend.preprocessing import load_all_data
+    from backend.core.preprocessing import load_all_data
     
     print("\n" + "="*70)
     print("INTEGRATING ACS DEMOGRAPHICS WITH TRAFFIC DATA")
@@ -187,7 +187,7 @@ def integrate_demographics_into_traffic():
 
 def preview_feature_impact():
     """Preview how demographic features correlate with car growth."""
-    from backend.preprocessing import load_all_data
+    from backend.core.preprocessing import load_all_data
     
     print("\n" + "="*70)
     print("DEMOGRAPHIC FEATURE PREVIEW")

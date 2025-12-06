@@ -11,7 +11,7 @@ import pandas as pd
 from typing import Union, Dict, Any
 from sklearn.metrics import mean_absolute_error, r2_score
 
-from backend.preprocessing import load_all_data, coerce_numeric
+from backend.core.preprocessing import load_all_data, coerce_numeric
 import numpy as np
 
 # Default paths
@@ -19,7 +19,7 @@ MODEL_PATH = "backend/models/traffic_model.pkl"
 PREDICTIONS_DIR = "backend/data/predictions"
 DATA_DIR = "backend/data"
 
-# Updated features list — same as train_model.py
+# Updated features list — same as train_model.py (after 2025-12-06 tuning)
 FEATURES = [
     "posted_speed_nbr",
     "ff_speed_nbr",
@@ -36,9 +36,9 @@ FEATURES = [
     "congestion_delay_nbr",
     "delay_ratio_nbr",
     "section_length_nbr",
+    "median_width_nbr",
+    "fwy_art_nbr",
     "year",
-    "year_norm",
-    "year_poly2",
 ]
 
 

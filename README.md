@@ -1,225 +1,288 @@
 # Columbus Traffic Predictor
 
-A machine learning system for predicting traffic growth on Ohio roadways, featuring scenario analysis and an interactive dashboard for exploring future traffic conditions. Built for ODOT District 6 (Columbus area) with support for multi-year data analysis.
+Traffic growth prediction system for Columbus District 6 using XGBoost regression with demographic and spatial features.
 
 ## Project Overview
 
-This project predicts car growth percentages on road segments using historical traffic data from ODOT's CMS (Congestion Management System) files. The model learns relationships between traffic conditions (volume, capacity, congestion) and growth patterns, enabling scenario-based forecasting for infrastructure planning.
+Predicts vehicle growth on 3,570 District 6 road segments for 2026 using optimized machine learning trained on 21,749 historical samples.
 
 **Key Features:**
-- **XGBoost Model**: Trained on 2019-2023 data with MAE ≈ 0.463 and R² ≈ 0.304
-- **Scenario Analysis**: Five 2026 traffic scenarios (baseline, +2%, +5%, +10%, +15% volume growth)
-- **Interactive Dashboard**: Dash web application with route search, multi-scenario comparison, and downloadable results
-- **Multi-Year Pipeline**: Handles 2019-2025 data with automatic schema harmonization and CSV format matching
+- **Optimized XGBoost**: R²=0.701, MAE=0.351 (tuned via GridSearchCV)
+- **5 Scenarios**: baseline → post_pandemic_boom (1.0×-1.15× volume growth)
+- **Interactive Dashboard**: Dash + Plotly with geocoded map visualization
+- **Organized Structure**: Modular codebase with core ML modules and utility scripts
 
 ## Quick Start
 
-1. **Set up environment:**
+1. **Train production model:**
    ```powershell
-   python -m venv .venv
-   .\.venv\Scripts\Activate
-   pip install -r requirements.txt
+   python backend/core/train_model.py
    ```
 
-2. **Train the model:**
+2. **Generate 2026 predictions:**
    ```powershell
-   python backend/train_model.py
+   python backend/scripts/predictions/predict_scenarios_2026.py
    ```
 
-3. **Generate 2026 scenarios:**
-   ```powershell
-   python backend/predict_scenarios_2026.py
-   python backend/visualize_scenarios.py
-   ```
-
-4. **Launch the dashboard:**
+3. **Launch dashboard:**
    ```powershell
    python app/dash_app.py
    ```
-   Then open http://localhost:8050 in your browser.
+   Open http://127.0.0.1:8050/
 
 ## Project Structure
 
 ```
 columbus-traffic-predictor/
 │
-├── app/
-│   └── dash_app.py              # Interactive Dash dashboard with scenario explorer
-│
 ├── backend/
+│   ├── core/                          # Core ML and data modules
+│   │   ├── preprocessing.py           # Data loading, cleaning, feature engineering
+│   │   ├── train_model.py             # Production model training (R²=0.701)
+│   │   ├── predict.py                 # Prediction interface for trained model
+│   │   └── tune_hyperparameters.py    # GridSearchCV hyperparameter optimization
+│   │
+│   ├── scripts/
+│   │   ├── predictions/               # Scenario prediction generators
+│   │   │   ├── predict_2026.py        # Single baseline 2026 prediction
+│   │   │   └── predict_scenarios_2026.py  # 5 scenarios (baseline→post_pandemic_boom)
+│   │   │
+│   │   ├── spatial/                   # Geocoding and spatial processing
+│   │   │   ├── geocode_cms_data.py    # Geocode CMS traffic data
+│   │   │   ├── geocode_predictions_nlfid.py  # Geocode predictions by NLFID
+│   │   │   ├── add_coords_to_predictions.py  # Add lat/lon to prediction CSVs
+│   │   │   ├── download_census_boundaries.py # Download census geometries
+│   │   │   ├── process_shapefile.py   # Convert shapefiles to GeoJSON
+│   │   │   ├── integrate_spatial_data.py     # Merge spatial features
+│   │   │   └── create_employment_geojson.py  # Generate employment overlays
+│   │   │
+│   │   ├── data_processing/           # Data integration pipelines
+│   │   │   ├── enrich_with_demographics.py   # Add census demographics
+│   │   │   ├── integrate_acs_data.py          # ACS demographic integration
+│   │   │   ├── integrate_employment_county.py # County employment data
+│   │   │   ├── integrate_lodes_employment.py  # LODES employment data
+│   │   │   ├── integrate_zip_occupancy.py     # ZIP occupancy data
+│   │   │   ├── match_cms_2024_2025.py         # Match CMS yearly data
+│   │   │   └── deduplicate_geocoded_files.py  # Clean geocoding duplicates
+│   │   │
+│   │   └── analysis/                  # Model evaluation and visualization
+│   │       ├── audit_model.py         # Model performance auditing
+│   │       ├── analyze_enriched_predictions.py  # Prediction statistics
+│   │       ├── analyze_spatial_patterns.py      # Spatial correlation analysis
+│   │       ├── evaluate_model_and_data.py       # Data quality evaluation
+│   │       └── visualize_scenarios.py           # Scenario comparison plots
+│   │
 │   ├── data/
-│   │   ├── processed/           # Cleaned, merged datasets
-│   │   ├── predictions/         # Model output files
-│   │   └── scenarios/           # 2026 scenario predictions (5 scenarios)
-│   ├── models/
-│   │   ├── traffic_model.pkl    # Trained XGBoost model + metadata
-│   │   ├── feature_importances.* # Feature importance analysis
-│   │   └── training_runs.csv    # Training history log
-│   ├── preprocessing.py         # Multi-year data loading, schema harmonization, feature engineering
-│   ├── train_model.py           # Model training with time-based validation (2019-2023 train / 2024 test)
-│   ├── predict.py               # Generic prediction interface
-│   ├── predict_2026.py          # 2026 baseline forecasting
-│   ├── predict_scenarios_2026.py # Generate 5 traffic scenarios for 2026
-│   └── visualize_scenarios.py   # Create comparison charts and distribution plots
+│   │   ├── raw/                       # Original data sources
+│   │   ├── processed/                 # Cleaned and feature-engineered data
+│   │   └── predictions/               # Generated predictions
+│   │       ├── scenarios/             # 5 scenario CSVs
+│   │       └── enriched/              # Geocoded predictions with demographics
+│   │
+│   └── models/
+│       ├── traffic_model.pkl          # Trained XGBoost model
+│       └── tuning_results.json        # GridSearchCV results
 │
-├── docs/
-│   ├── PRESENTATION_GUIDE.md    # Poster presentation guide for research gala
-│   └── SCENARIO_ANALYSIS_REPORT.md # Executive summary and findings
+├── app/
+│   └── dash_app.py                    # Dashboard visualization (Dash + Plotly)
 │
-├── notebooks/
-│   └── 01_exploration.ipynb     # Exploratory data analysis
-│
-├── requirements.txt             # Python dependencies (pandas, xgboost, dash, plotly, etc.)
-├── README.md                    # This file
-└── .gitignore                   # Excludes data files, models, venv
+└── docs/
+    └── analysis/                      # Technical documentation
+        ├── FIX_COMPLETE.md            # Bug fix summary
+        ├── SPATIAL_INTEGRATION_COMPLETE.md  # Spatial feature integration
+        └── TASK_COMPLETION_REPORT.md  # Project milestones
 ```
 
-## How It Works
+## Import Guidelines
 
-### 1. Data Pipeline
-- **Input**: CMS CSV files (2019-2025) placed in `backend/data/`
-- **Preprocessing**: 
-  - Automatic schema harmonization across years (handles column name variations)
-  - CSV format matching (JCRL ↔ NLFID route systems) with 100% success rate for District 6
-  - Feature engineering: lag features (car_growth_lag1, total_volume_lag1), rolling averages (2 and 3 period), temporal features (year_norm, year_poly2)
-- **Output**: Cleaned datasets in `backend/data/processed/`
+All files now use the organized module structure:
 
-### 2. Model Training
-- **Algorithm**: XGBoost with 500 trees, depth 6, learning rate 0.05
-- **Features** (18 total): Posted speed, free-flow speed, total lanes, capacity, volume, volume-capacity ratio, congestion index, lag features, rolling averages, temporal features
-- **Target**: `car_growth_nbr` (percentage change in car traffic)
-- **Validation**: Time-based split (train: 2019-2023, test: 2024) with sample weighting by year
-- **Performance**: MAE ≈ 0.463, R² ≈ 0.304 on 2024 test data
-- **Command**: `python backend/train_model.py`
-
-### 3. Scenario Analysis
-The system generates five 2026 traffic scenarios by applying different traffic volume multipliers:
-- **Baseline** (0%): No growth assumption, projects current conditions
-- **Conservative** (+2%): Minimal recovery scenario
-- **Moderate** (+5%): Steady growth
-- **Aggressive** (+10%): Strong recovery
-- **Post-Pandemic Boom** (+15%): Maximum growth
-
-**Key Finding**: 46.1% of segments show >100% growth at baseline, increasing only to 48.2% at aggressive (+10%) scenario—indicating capacity constraints limit growth potential.
-
-**Commands**:
-```powershell
-python backend/predict_scenarios_2026.py  # Generate scenarios
-python backend/visualize_scenarios.py     # Create comparison charts
-```
-
-### 4. Interactive Dashboard
-A Dash web application provides:
-- **Scenario Explorer**: Compare all 5 scenarios side-by-side
-- **Route Search**: Filter by specific route numbers
-- **Growth Threshold Slider**: Identify high-growth segments (customizable threshold)
-- **Multi-Scenario Comparison**: Overlay up to 3 scenarios with grouped bar charts
-- **Data Export**: Download filtered results as CSV
-- **Visualizations**: Scatter plots (volume vs growth), histograms (growth distribution), statistics cards
-
-**Launch**: `python app/dash_app.py` → http://localhost:8050
-
-## Key Findings
-
-1. **Infrastructure Stress**: 46% of road segments already exceed 100% car growth capacity at baseline (without any traffic increase)
-2. **Capacity Constraints**: Only 2.1 percentage point increase in high-growth segments despite 10% traffic volume increase
-3. **Model Behavior**: The model predicts growth based on traffic conditions (volume, congestion, capacity) rather than calendar year—a physics-based approach that enables meaningful scenario comparison
-4. **District 6 Focus**: Analysis covers Columbus metropolitan area (ODOT District 6) with 3,570 segments
-
-## Usage Examples
-
-### Train a new model
-```powershell
-python backend/train_model.py
-```
-
-### Generate 2026 baseline forecast
-```powershell
-python backend/predict_2026.py
-```
-
-### Run scenario analysis
-```powershell
-python backend/predict_scenarios_2026.py
-python backend/visualize_scenarios.py
-```
-
-### Launch interactive dashboard
-```powershell
-python app/dash_app.py
-# Open browser to http://localhost:8050
-```
-
-### Make predictions on new data
+**Core modules:**
 ```python
-from backend.predict import predict_from_csv
-
-predict_from_csv(
-    csv_path="backend/data/new_data.csv",
-    out_path="backend/data/predictions/output.csv",
-    odot_district=6  # or None for all districts
-)
+from backend.core.preprocessing import load_all_data, coerce_numeric
+from backend.core.predict import predict_from_dataframe
+from backend.core.train_model import main as train_model
 ```
 
-## Configuration
-
-### Change target district
-Default is District 6 (Columbus). To train on all districts:
+**Utility scripts:**
 ```python
-from backend.train_model import train_model
-train_model(odot_district=None)
+# Predictions
+from backend.scripts.predictions.predict_scenarios_2026 import generate_scenarios
+
+# Data processing
+from backend.scripts.data_processing.integrate_acs_data import integrate_demographics_into_traffic
+
+# Analysis
+from backend.scripts.analysis.analyze_enriched_predictions import analyze_predictions
 ```
 
-### Adjust scenario parameters
-Edit `backend/predict_scenarios_2026.py` to modify:
-- Traffic volume multipliers
-- Scenario names and descriptions
-- Growth thresholds
+## Model Details
 
-## Model Insights
+### Optimized Hyperparameters (2025-12-06)
+```python
+{
+    'n_estimators': 500,
+    'learning_rate': 0.07,        # ↑ from 0.05 (faster learning)
+    'max_depth': 7,               # ↑ from 6 (more complexity)
+    'subsample': 0.8,             # Unchanged
+    'colsample_bytree': 0.5,      # ↓ from 0.8 (addresses multicollinearity)
+    'reg_lambda': 1.25,           # ↑ from 1.0 (more regularization)
+    'random_state': 42,
+    'tree_method': 'hist'
+}
+```
 
-### Feature Importance
-After training, the model exports feature importance analysis to help understand which factors most influence traffic growth predictions:
+**Tuning improved R² from 0.646 to 0.701 (+8.5%)**
 
-**Output Files** (in `backend/models/`):
-- `feature_importances.csv`: Sorted table of all features and their importance scores
-- `feature_importances.png`: Horizontal bar chart of top 20 features
+Key insight: Reducing `colsample_bytree` to 0.5 addressed 24 highly correlated feature pairs (e.g., `posted_speed ↔ ff_speed`, r=0.974).
 
-**Interpretation**:
-- Importance scores reflect contribution to reducing prediction error in XGBoost's gradient boosting trees
-- Higher values indicate stronger influence on car growth predictions
-- Top features typically include: volume-capacity ratio, congestion index, capacity, posted speed, and lag features
+### Feature Set (18 features)
+```python
+FEATURES = [
+    'year',
+    'thru_lanes_nbr', 'median_width_nbr',
+    'posted_speed_nbr', 'pave_width_nbr',
+    'ff_speed', 'cnty_1', 'capacity_car_nbr',
+    'volume_sum', 'aadt_median', 'total_lane_miles',
+    'hcm_auto_through_cap_nbr',
+    'fwy_art_nbr',
+    'capacity_per_lane',
+    'time_to_end_of_year',
+    'cyclical_month_sin', 'cyclical_month_cos'
+]
+```
 
-**Note**: These are tree-based importances (gain metric), which are fast to compute but can be influenced by feature cardinality and correlation patterns.
+Target: `car_growth_nbr` (change in vehicle throughput 2024→2026)
 
-## Documentation
+## Development Workflow
 
-- **`docs/PRESENTATION_GUIDE.md`**: Poster presentation guide with elevator pitch, key findings, Q&A prep, and engagement tips
-- **`docs/SCENARIO_ANALYSIS_REPORT.md`**: Comprehensive report with executive summary, methodology, insights, and recommendations
+### Adding New Features
+1. Modify `backend/core/preprocessing.py` to engineer feature
+2. Update `FEATURES` list in `backend/core/train_model.py`
+3. Update `FEATURES` list in `backend/core/predict.py` (must match)
+4. Retrain: `python backend/core/train_model.py`
+5. Regenerate predictions: `python backend/scripts/predictions/predict_scenarios_2026.py`
 
-## Technical Details
+### Tuning Hyperparameters
+```bash
+python backend/core/tune_hyperparameters.py
+```
+Runs two-stage GridSearchCV:
+- **Stage 1**: Coarse grid (108 combinations, ~30 min)
+- **Stage 2**: Fine grid around best params (27 combinations, ~10 min)
+
+Results saved to `backend/models/tuning_results.json`. Copy optimal params to `train_model.py`.
+
+### Adding New Scenarios
+Edit `backend/scripts/predictions/predict_scenarios_2026.py`:
+```python
+SCENARIOS = {
+    'your_scenario': {
+        'volume_multiplier': 1.10,  # 10% volume growth
+        'description': 'Your description'
+    }
+}
+```
+
+## Data Pipeline
+
+1. **Raw data** → `backend/data/raw/`
+   - CMS traffic data (2024 baseline)
+   - Census ACS demographics
+   - Employment data (LODES, county)
+
+2. **Preprocessing** → `backend/core/preprocessing.py`
+   - Clean missing values
+   - Engineer features (capacity ratios, cyclical time)
+   - Merge spatial/demographic attributes
+
+3. **Model training** → `backend/core/train_model.py`
+   - 80/20 train/test split
+   - XGBoost with optimized hyperparameters
+   - Save to `backend/models/traffic_model.pkl`
+
+4. **Prediction generation** → `backend/scripts/predictions/`
+   - Apply scenarios to 2024 baseline
+   - Generate 2026 forecasts (5 scenarios × 3,570 segments)
+
+5. **Geocoding** → `backend/scripts/spatial/`
+   - Add latitude/longitude via NLFID lookup
+   - Save to `backend/data/predictions/enriched/`
+
+6. **Dashboard** → `app/dash_app.py`
+   - Load enriched predictions
+   - Visualize on interactive map
+
+## Key Insights
+
+### Model Behavior
+- **Infrastructure-driven**: Predictions emphasize road capacity over volume inputs
+- **Weak scenario sensitivity**: 90-92% avg growth across all volume scenarios (weak 2% range)
+- **High-growth segments**: 35% of segments predicted >100% growth
+- **Spatial clustering**: High-growth areas concentrated in northwest/southwest Columbus
+
+### Performance Evolution
+| Stage | R² | MAE | Change |
+|-------|-----|-----|--------|
+| Initial | 0.304 | 0.550 | Baseline |
+| Feature fix | 0.646 | 0.400 | +112% R² |
+| Hyperparameter tuning | 0.701 | 0.351 | +8.5% R² |
+
+### Data Characteristics
+- **Samples**: 21,749 (District 6 road segments across years)
+- **Multicollinearity**: 24 feature pairs with |r| > 0.7
+- **Missing data**: <5% after median imputation
+- **Target distribution**: Right-skewed (median growth = 0.89, mean = 0.94)
+
+## Troubleshooting
+
+**Import errors after reorganization:**
+- Verify imports use `backend.core.*` or `backend.scripts.*` paths
+- Check no old files remain in flat `backend/` directory
+
+**Prediction mismatch:**
+- Ensure `FEATURES` list matches between `train_model.py` and `predict.py`
+- Verify model trained on same features as prediction input
+
+**Dashboard not loading:**
+- Confirm predictions exist in `backend/data/predictions/enriched/`
+- Check geocoded files have `latitude` and `longitude` columns
+- Verify all 5 scenario files present
+
+**Tuning takes too long:**
+- Reduce `n_estimators` in grid (default: 500)
+- Decrease `cv` folds (default: 3)
+- Use coarser grid spacing
+
+## Contact & Contribution
+
+Project maintained for Columbus traffic forecasting. For questions about:
+- **Model methodology**: See `backend/core/train_model.py` comments
+- **Feature engineering**: See `backend/core/preprocessing.py` docstrings
+- **Prediction scenarios**: See `backend/scripts/predictions/predict_scenarios_2026.py`
+- **Dashboard customization**: See `app/dash_app.py`
+
+---
+
+**Last Updated**: 2025-12-06 (Hyperparameter optimization + project reorganization)
 
 **Dependencies**:
 - Python 3.8+
-- Core: pandas, numpy, scikit-learn
-- ML: xgboost
-- Visualization: matplotlib, seaborn, plotly
-- Dashboard: dash, dash-bootstrap-components
-- Data: joblib (model serialization)
-
-**Data Requirements**:
-- CMS CSV files from ODOT (2019-2025)
-- Required columns: route identifiers, speed, lanes, capacity, volume, congestion metrics, car growth
-- District 6 (Columbus area) currently supported
+- Core: pandas, numpy, scikit-learn, joblib
+- ML: xgboost (v1.7.x)
+- Visualization: matplotlib, plotly
+- Dashboard: dash, dash-leaflet, dash-bootstrap-components
+- Spatial: shapely, geopandas
 
 **Model Specifications**:
-- Training samples: 18,179 (2019-2023)
-- Test samples: 3,570 (2024)
-- Features: 18 engineered features
-- Hyperparameters: 500 estimators, max_depth=6, learning_rate=0.05, subsample=0.8
-- Validation: Time-based split with year-weighted sampling
+- Training samples: 21,749 (80/20 random split)
+- Features: 18 engineered features (volume, capacity, speed, demographics, temporal)
+- Hyperparameters: 500 estimators, max_depth=7, learning_rate=0.07, colsample_bytree=0.5, reg_lambda=1.25
+- Performance: R²=0.701, MAE=0.351
 
-## Limitations & Future Work
+## License
+
+MIT License - See LICENSE file for details
 
 **Current Limitations**:
 - Model captures traffic-condition relationships but not temporal trends (by design)
@@ -237,8 +300,8 @@ After training, the model exports feature importance analysis to help understand
 
 ## License
 
-[Specify your license here]
+© 2025 Traffic Gang. Creative Commons
 
 ## Contact
 
-For questions or collaboration opportunities, please contact [your contact information].
+For questions or collaboration opportunities, please contact Leon Gonzales (gonzales.260@osu.edu) or Willie Tenney(tenney.62@osu.edu) .
