@@ -391,7 +391,7 @@ app.layout = html.Div([
                         html.Strong("CTForecast"),
                         " - Powered by XGBoost ML (R²=0.701) | ",
                         html.I(className="fas fa-database me-1"),
-                        "ODOT CMS 2019-2024 | ",
+                        "ODOT CMS 2019-2025 | ",
                         html.I(className="fas fa-map-marked-alt me-1"),
                         "3,570 Road Segments"
                     ], className="text-center text-muted small mb-2"),
@@ -621,19 +621,31 @@ def update_dashboard(scenario, threshold, route_search):
     )
     hist_fig.update_traces(marker=dict(line=dict(color='#5568d3', width=1)))
     
-    # Create data table with better column names and descriptions
-    table_df = filtered[[
-        'route_nbr', 'predicted_car_growth_nbr', 'total_volume_nbr',
-        'capacity_nbr', 'congestion_index_nbr', 'functional_class_cd'
-    ]].head(100).round(3)
+    # Create aggregated data table by route (one row per route)
+    table_df = filtered.groupby('route_nbr', as_index=False).agg({
+        'predicted_car_growth_nbr': ['mean', 'max', 'min'],
+        'total_volume_nbr': 'sum',
+        'capacity_nbr': 'mean',
+        'congestion_index_nbr': 'mean',
+        'section_length_nbr': 'sum' if 'section_length_nbr' in filtered.columns else 'count'
+    }).round(3)
+    
+    # Flatten multi-level columns
+    table_df.columns = ['route_nbr', 'avg_growth', 'max_growth', 'min_growth', 
+                        'total_volume', 'avg_capacity', 'avg_congestion', 'total_length']
+    
+    # Sort by max growth (highest risk routes first)
+    table_df = table_df.sort_values('max_growth', ascending=False).head(50)
     
     column_labels = {
         'route_nbr': 'Route',
-        'predicted_car_growth_nbr': 'Growth Rate',
-        'total_volume_nbr': 'Traffic Volume',
-        'capacity_nbr': 'Capacity',
-        'congestion_index_nbr': 'Congestion',
-        'functional_class_cd': 'Type'
+        'avg_growth': 'Avg Growth',
+        'max_growth': 'Max Growth',
+        'min_growth': 'Min Growth',
+        'total_volume': 'Total Volume',
+        'avg_capacity': 'Avg Capacity',
+        'avg_congestion': 'Avg Congestion',
+        'total_length': 'Total Length/Segments'
     }
     
     data_table = dash_table.DataTable(
@@ -648,10 +660,17 @@ def update_dashboard(scenario, threshold, route_search):
         },
         style_data_conditional=[
             {
-                'if': {'column_id': 'predicted_car_growth_nbr',
-                       'filter_query': '{predicted_car_growth_nbr} > 1'},
+                'if': {'column_id': 'max_growth',
+                       'filter_query': '{max_growth} > 1'},
                 'backgroundColor': '#ffcccc',
                 'color': 'darkred',
+                'fontWeight': 'bold'
+            },
+            {
+                'if': {'column_id': 'avg_growth',
+                       'filter_query': '{avg_growth} > 1'},
+                'backgroundColor': '#ffe6cc',
+                'color': 'darkorange',
                 'fontWeight': 'bold'
             }
         ],
@@ -659,11 +678,13 @@ def update_dashboard(scenario, threshold, route_search):
         filter_action='native',
         tooltip_header={
             'route_nbr': 'Road/Highway number (e.g., 70 = I-70)',
-            'predicted_car_growth_nbr': 'Predicted traffic growth rate as decimal (e.g., 0.50 = 50% growth, 1.0 = 100% growth)',
-            'total_volume_nbr': 'Current daily traffic volume',
-            'capacity_nbr': 'Maximum designed capacity',
-            'congestion_index_nbr': 'Congestion level (higher = more congested)',
-            'functional_class_cd': 'Highway classification'
+            'avg_growth': 'Average predicted growth rate across all segments of this route',
+            'max_growth': 'Maximum growth rate among all segments (identifies worst bottleneck)',
+            'min_growth': 'Minimum growth rate among all segments',
+            'total_volume': 'Sum of traffic volume across all segments',
+            'avg_capacity': 'Average capacity across all segments',
+            'avg_congestion': 'Average congestion level (higher = more congested)',
+            'total_length': 'Total route length or number of segments'
         },
         tooltip_delay=0,
         tooltip_duration=None

@@ -170,7 +170,7 @@ XGBRegressor(
    - **Confidence**: Longer forecasts would be less reliable
 
 3. **Static infrastructure**: Assumes no major road changes (widening, new construction)
-   - **Reality**: Infrastructure projects can invalidate predictions
+   - **Reality**: Infrastructure projects would change predictions
 
 ### Practical Limitations
 1. **"Black box" nature**: XGBoost is less interpretable than linear regression
@@ -319,7 +319,7 @@ This project demonstrates that:
 - **Interactive visualization** bridges the gap between technical models and policy decisions
 
 ### Final Reflection
-We learned that building a robust prediction system requires equal attention to data quality, model optimization, and stakeholder communication. The technical challenge of achieving R² = 0.701 was matched by the organizational challenge of structuring code for maintainability and creating visualizations for accessibility.
+We learned that building a robust prediction system requires equal attention to data quality, model optimization, and communication. The technical challenge of achieving R² = 0.701 was matched by the organizational challenge of structuring code for maintainability and creating visualizations for accessibility.
 
 Our hope is that ODOT and Columbus planners in the near future could confidently use this tool to make evidence-based infrastructure decisions, prioritizing investments where capacity constraints are most severe. While our model isn't perfect, no model is, it provides a data-driven starting point for conversations about where Columbus needs to build, widen, and improve its road network.
 

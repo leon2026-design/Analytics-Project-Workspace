@@ -57,17 +57,17 @@ def main():
     print("Columbus Traffic Growth: 2026 Scenario Analysis")
     print("="*70)
     
-    # Load 2024 baseline (most recent available year)
-    print("\nLoading 2024 Columbus District 6 baseline data...")
+    # Load 2025 baseline (most recent available year)
+    print("\nLoading 2025 Columbus District 6 baseline data...")
     df_all = load_all_data("backend/data")
     
-    # Filter to District 6, year 2024
-    df_2024_d6 = df_all[
+    # Filter to District 6, year 2025
+    df_2025_d6 = df_all[
         (df_all.get('odot_district') == 6) & 
-        (df_all.get('year') == 2024)
+        (df_all.get('year') == 2025)
     ].copy()
     
-    print(f"✓ Loaded {len(df_2024_d6)} road segments from District 6")
+    print(f"✓ Loaded {len(df_2025_d6)} road segments from District 6")
     
     # Define scenarios
     scenarios = {
@@ -109,7 +109,7 @@ def main():
         print(f"{'-'*70}")
         
         # Apply scenario transformations
-        df_scenario = apply_scenario(df_2024_d6, scenario_name, params)
+        df_scenario = apply_scenario(df_2025_d6, scenario_name, params)
         
         # Update year to 2026 and recompute time features
         df_scenario['year'] = 2026
