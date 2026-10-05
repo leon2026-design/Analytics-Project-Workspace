@@ -1,9 +1,8 @@
 """backend.train_model
 
-Simple training script for the Columbus Traffic Predictor backend. Loads
-preprocessed traffic data, trains a baseline sklearn regression pipeline
-(imputer, scaler, linear regression), evaluates basic metrics, saves the
-trained pipeline and records metadata about the training run.
+Training script for the Columbus Traffic Predictor backend. Loads preprocessed
+traffic data, trains an imputed XGBoost regression pipeline, evaluates holdout
+metrics, saves the trained pipeline, and records metadata about the run.
 """
 
 import os

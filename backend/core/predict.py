@@ -17,7 +17,6 @@ import numpy as np
 # Default paths
 MODEL_PATH = "backend/models/traffic_model.pkl"
 PREDICTIONS_DIR = "backend/data/predictions"
-DATA_DIR = "backend/data"
 
 # Updated features list — same as train_model.py (after 2025-12-06 tuning)
 FEATURES = [

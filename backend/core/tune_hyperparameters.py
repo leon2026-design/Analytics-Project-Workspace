@@ -6,7 +6,6 @@ Stage 2: Fine grid search around best parameters from Stage 1
 
 Optimizations:
 - 3-fold CV for faster execution with stable estimates (21K samples)
-- Early stopping to avoid training all 500 trees
 - Parallel execution with n_jobs=-1
 - Verbose output for progress tracking
 """
