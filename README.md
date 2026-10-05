@@ -4,10 +4,10 @@ Traffic growth prediction system for Columbus District 6 using XGBoost regressio
 
 ## Project Overview
 
-Predicts vehicle growth on 3,570 District 6 road segments for 2026 using optimized machine learning trained on 21,749 historical samples.
+Predicts vehicle growth on Columbus District 6 road segments using an XGBoost regression pipeline with traffic, road-inventory, and temporal features.
 
 **Key Features:**
-- **Optimized XGBoost**: R²=0.701, MAE=0.351 (tuned via GridSearchCV)
+- **XGBoost pipeline**: train and evaluate metrics from the data available locally
 - **5 Scenarios**: baseline → post_pandemic_boom (1.0×-1.15× volume growth)
 - **Interactive Dashboard**: Dash + Plotly with geocoded map visualization
 - **Organized Structure**: Modular codebase with core ML modules and utility scripts
@@ -18,6 +18,8 @@ Predicts vehicle growth on 3,570 District 6 road segments for 2026 using optimiz
    ```powershell
    python backend/core/train_model.py
    ```
+   Training data is not committed to the repository. First place the required CMS
+   CSV files in `backend/data/`.
 
 2. **Generate 2026 predictions:**
    ```powershell
@@ -38,7 +40,7 @@ columbus-traffic-predictor/
 ├── backend/
 │   ├── core/                          # Core ML and data modules
 │   │   ├── preprocessing.py           # Data loading, cleaning, feature engineering
-│   │   ├── train_model.py             # Production model training (R²=0.701)
+│   │   ├── train_model.py             # Production model training
 │   │   ├── predict.py                 # Prediction interface for trained model
 │   │   └── tune_hyperparameters.py    # GridSearchCV hyperparameter optimization
 │   │
@@ -118,7 +120,7 @@ from backend.scripts.analysis.analyze_enriched_predictions import analyze_predic
 
 ## Model Details
 
-### Optimized Hyperparameters (2025-12-06)
+### Current Training Hyperparameters
 ```python
 {
     'n_estimators': 500,
@@ -132,23 +134,19 @@ from backend.scripts.analysis.analyze_enriched_predictions import analyze_predic
 }
 ```
 
-**Tuning improved R² from 0.646 to 0.701 (+8.5%)**
-
-Key insight: Reducing `colsample_bytree` to 0.5 addressed 24 highly correlated feature pairs (e.g., `posted_speed ↔ ff_speed`, r=0.974).
+Run training and holdout evaluation on the current dataset before relying on a
+reported score. Tuning uses cross-validation on the training partition and
+compares the selected estimator against an untouched holdout set.
 
 ### Feature Set (18 features)
 ```python
 FEATURES = [
-    'year',
-    'thru_lanes_nbr', 'median_width_nbr',
-    'posted_speed_nbr', 'pave_width_nbr',
-    'ff_speed', 'cnty_1', 'capacity_car_nbr',
-    'volume_sum', 'aadt_median', 'total_lane_miles',
-    'hcm_auto_through_cap_nbr',
-    'fwy_art_nbr',
-    'capacity_per_lane',
-    'time_to_end_of_year',
-    'cyclical_month_sin', 'cyclical_month_cos'
+    'posted_speed_nbr', 'ff_speed_nbr', 'total_lanes_nbr',
+    'lane_width_nbr', 'capacity_nbr', 'total_volume_nbr',
+    'truck_volume_nbr', 'vmt_nbr', 'truck_vmt_nbr', 'vht_nbr',
+    'volume_capacity_ratio_nbr', 'congestion_index_nbr',
+    'congestion_delay_nbr', 'delay_ratio_nbr', 'section_length_nbr',
+    'median_width_nbr', 'fwy_art_nbr', 'year'
 ]
 ```
 
@@ -267,7 +265,7 @@ Project maintained for Columbus traffic forecasting. For questions about:
 **Last Updated**: 2025-12-06 (Hyperparameter optimization + project reorganization)
 
 **Dependencies**:
-- Python 3.8+
+- Python 3.10+
 - Core: pandas, numpy, scikit-learn, joblib
 - ML: xgboost (v1.7.x)
 - Visualization: matplotlib, plotly
@@ -275,10 +273,10 @@ Project maintained for Columbus traffic forecasting. For questions about:
 - Spatial: shapely, geopandas
 
 **Model Specifications**:
-- Training samples: 21,749 (80/20 random split)
-- Features: 18 engineered features (volume, capacity, speed, demographics, temporal)
+- Training samples: depend on the CMS files supplied locally (80/20 random split)
+- Features: 18 traffic, road-inventory, and temporal features
 - Hyperparameters: 500 estimators, max_depth=7, learning_rate=0.07, colsample_bytree=0.5, reg_lambda=1.25
-- Performance: R²=0.701, MAE=0.351
+- Performance: calculate from the current training run's holdout set
 
 ## License
 
@@ -286,7 +284,7 @@ MIT License - See LICENSE file for details
 
 **Current Limitations**:
 - Model captures traffic-condition relationships but not temporal trends (by design)
-- R² ≈ 0.30 reflects unmeasured factors (economic conditions, weather, behavior changes)
+- Validate performance against an untouched holdout set before using forecasts for planning
 - District 6 focus—other districts may have different patterns
 
 **Potential Enhancements**:

@@ -8,11 +8,7 @@ temporal employment trends, similar to the demographic data approach.
 import pandas as pd
 from pathlib import Path
 from typing import Optional
-import sys
-
-# Add backend to path for imports
-sys.path.insert(0, str(Path(__file__).parent))
-from preprocessing import load_all_data
+from backend.core.preprocessing import load_all_data
 
 
 def load_county_employment() -> Optional[pd.DataFrame]:

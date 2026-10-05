@@ -13,7 +13,8 @@ This script:
 import pandas as pd
 import numpy as np
 from pathlib import Path
-import sys
+
+from backend.core.preprocessing import load_all_data
 
 
 def load_lodes_files():
@@ -359,10 +360,6 @@ def match_segments_to_tracts(df_traffic):
 
 def integrate_employment_with_traffic():
     """Main integration function to merge employment data with traffic data."""
-    
-    # Add parent directory to path for imports
-    sys.path.insert(0, str(Path(__file__).parent.parent))
-    from backend.core.preprocessing import load_all_data
     
     print("\n" + "="*80)
     print(" "*20 + "LODES EMPLOYMENT INTEGRATION")

@@ -1,5 +1,5 @@
 import pandas as pd
-from backend.preprocessing import clean
+from backend.core.preprocessing import clean
 
 def test_clean_noop():
     df = pd.DataFrame({"a": [1,2,3]})

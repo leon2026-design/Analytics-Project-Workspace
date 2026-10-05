@@ -1,9 +1,8 @@
 """backend.train_model
 
-Simple training script for the Columbus Traffic Predictor backend. Loads
-preprocessed traffic data, trains a baseline sklearn regression pipeline
-(imputer, scaler, linear regression), evaluates basic metrics, saves the
-trained pipeline and records metadata about the training run.
+Training script for the Columbus Traffic Predictor backend. Loads preprocessed
+traffic data, trains an imputed XGBoost regression pipeline, evaluates holdout
+metrics, saves the trained pipeline, and records metadata about the run.
 """
 
 import os
@@ -162,7 +161,7 @@ def train_model(data_path: str = DATA_PATH, model_path: str = MODEL_PATH, odot_d
     print(f"Model trained. MAE={mae:.3f}, R²={r2:.3f}")
 
     # 7. Save model + metadata
-    os.makedirs(MODEL_DIR, exist_ok=True)
+    os.makedirs(os.path.dirname(model_path) or ".", exist_ok=True)
     meta = {"features": available_features, "target": TARGET, "mae": mae, "r2": r2}
     joblib.dump({"model": pipeline, "meta": meta}, model_path)
     print(f"Model and metadata saved to {model_path}")
@@ -243,12 +242,15 @@ def train_model(data_path: str = DATA_PATH, model_path: str = MODEL_PATH, odot_d
     return pipeline
 
 
-def train(data_path: str = DATA_PATH, model_path: str = MODEL_PATH):
+def train(
+    data_path: str = DATA_PATH,
+    model_path: str = MODEL_PATH,
+    odot_district: Optional[int] = 6,
+):
     """Backwards-compatible function used by tests."""
-    train_model(data_path, model_path)
+    return train_model(data_path, model_path, odot_district)
 
 
 if __name__ == "__main__":
     # Train only on ODOT district 6 (Columbus area) by default
     train_model(odot_district=6)
-

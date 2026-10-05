@@ -15,7 +15,7 @@ from shapely.geometry import Point
 # Paths
 PREDICTIONS_DIR = Path("backend/data/predictions/scenarios")
 DEMOGRAPHICS_DIR = Path("backend/data")
-OUTPUT_DIR = Path("backend/data/predictions/scenarios")
+OUTPUT_DIR = Path("backend/data/predictions/enriched")
 
 def load_census_tract_boundaries():
     """
@@ -51,10 +51,9 @@ def load_census_tract_boundaries():
 
 def load_demographic_data():
     """Load ACS demographic data by ZIP code."""
-    # Use your existing integrate_acs_data.py functions
-    import sys
-    sys.path.append('backend')
-    from integrate_acs_data import load_all_acs_demographics
+    from backend.scripts.data_processing.integrate_acs_data import (
+        load_all_acs_demographics,
+    )
     
     return load_all_acs_demographics()
 
@@ -154,9 +153,13 @@ def spatial_join_predictions_with_demographics():
         # Calculate new features
         print(f"  Calculating spatial features...")
         
-        # Distance to downtown Columbus (39.9612, -82.9988)
-        downtown = Point(-82.9988, 39.9612)
-        gdf_enriched['distance_to_downtown_mi'] = gdf_enriched.geometry.distance(downtown) * 69  # degrees to miles
+        # Calculate distances in a projected CRS before converting meters to miles.
+        downtown = gpd.GeoSeries([Point(-82.9988, 39.9612)], crs="EPSG:4326")
+        projected = gdf_enriched.to_crs("EPSG:26917")
+        projected_downtown = downtown.to_crs(projected.crs).iloc[0]
+        gdf_enriched["distance_to_downtown_mi"] = (
+            projected.geometry.distance(projected_downtown) / 1609.344
+        )
         
         # Classify urban/suburban/rural based on distance
         gdf_enriched['area_type'] = pd.cut(
@@ -166,6 +169,7 @@ def spatial_join_predictions_with_demographics():
         )
         
         # Save enriched predictions
+        OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
         output_file = OUTPUT_DIR / pred_file.name.replace('geocoded_', 'enriched_')
         gdf_enriched.drop(columns=['geometry'], errors='ignore').to_csv(output_file, index=False)
         print(f"  Saved to: {output_file}")

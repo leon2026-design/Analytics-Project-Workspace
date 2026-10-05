@@ -1,6 +1,11 @@
-import os
 import pandas as pd
-from backend.preprocessing import clean_data, coerce_numeric, validate_schema, save_processed
+from backend.core.preprocessing import (
+    clean_data,
+    coerce_numeric,
+    match_cms5_to_cms,
+    save_processed,
+    validate_schema,
+)
 
 
 def test_fill_strategies(tmp_path):
@@ -36,3 +41,19 @@ def test_save_processed(tmp_path):
     assert out.exists()
     loaded = pd.read_csv(out)
     assert loaded.shape == (2, 1)
+
+
+def test_match_cms5_to_cms_extracts_two_letter_route_type():
+    matched = match_cms5_to_cms(
+        pd.DataFrame({"jcrl": ["SWOOUS00006**C17505"], "a": [0]}),
+        pd.DataFrame(
+            {
+                "route_type": ["US"],
+                "route_nbr": [6],
+                "logmile": [0],
+                "kdot_nlfid": ["segment-6"],
+            }
+        ),
+    )
+
+    assert matched["matched_nlfid"].tolist() == ["segment-6"]

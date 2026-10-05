@@ -903,10 +903,10 @@ def update_leaflet_map(scenario, threshold):
                     f"Jobs within 2mi: {int(row['jobs_within_2mi']):,}"
                 ])
             
-            if 'distance_to_downtown' in row and pd.notna(row['distance_to_downtown']):
+            if 'distance_to_downtown_mi' in row and pd.notna(row['distance_to_downtown_mi']):
                 popup_elements.extend([
                     html.Br(),
-                    f"Distance to downtown: {row['distance_to_downtown']:.1f} mi"
+                    f"Distance to downtown: {row['distance_to_downtown_mi']:.1f} mi"
                 ])
             
             if 'area_type' in row and pd.notna(row['area_type']):

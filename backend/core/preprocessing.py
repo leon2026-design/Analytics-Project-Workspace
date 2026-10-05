@@ -443,15 +443,16 @@ def match_cms5_to_cms(df24, df25):
             return (None, None)
 
         import re
-        # Find letters followed by exactly 5 digits
-        m = re.search(r'([A-Z]+)(\d{5})', jcrl)
+        # Route type is the two-letter code immediately preceding its
+        # zero-padded route number (e.g. SWOOUS00006 -> US, 6).
+        m = re.search(r"([A-Z]{2})(\d{5})", jcrl.upper())
         if not m:
             return (None, None)
 
         route_type = m.group(1)      # e.g., US, SR, IR
         try:
             route_nbr = int(m.group(2))  # last 5 digits  route number
-        except:
+        except ValueError:
             return (None, None)
 
         return (route_type, route_nbr)
@@ -480,13 +481,13 @@ def match_cms5_to_cms(df24, df25):
     matched_ids = []
     for _, row in df24.iterrows():
         r = row["route_id"]
-        if pd.isna(r):
+        if not isinstance(r, tuple) or r[0] is None or r[1] is None:
             matched_ids.append(None)
             continue
         route_type, route_nbr = r
         subset = df25[
             (df25["route_type"].astype(str).str.upper() == route_type)
-            & (df25["route_nbr"] == route_nbr)
+            & (pd.to_numeric(df25["route_nbr"], errors="coerce") == route_nbr)
         ]
         if subset.empty:
             matched_ids.append(None)
@@ -494,7 +495,10 @@ def match_cms5_to_cms(df24, df25):
         # compute absolute diff in normalized positions
         diffs = (subset["linpos25"] - row["linpos24"]).abs()
         idx = diffs.idxmin()
-        matched_ids.append(df25.loc[idx, "kdot_nlfid"] if "kdot_nlfid" in df25.columns else df25.loc[idx, "unique_id"])
+        id_col = "kdot_nlfid" if "kdot_nlfid" in df25.columns else "unique_id"
+        if id_col not in df25.columns:
+            raise ValueError("2025 file must contain kdot_nlfid or unique_id for mapping.")
+        matched_ids.append(df25.loc[idx, id_col])
 
     df24["matched_nlfid"] = matched_ids
     return df24
