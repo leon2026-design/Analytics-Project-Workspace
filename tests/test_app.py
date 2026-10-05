@@ -1,6 +1,6 @@
 from app.app import create_app
 
-def test_app_callable():
+
+def test_create_app_returns_dash_application():
     app = create_app()
-    assert callable(app)
-    assert app() == "Columbus Traffic Predictor App"
+    assert app.server is not None

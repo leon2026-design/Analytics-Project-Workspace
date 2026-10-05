@@ -8,10 +8,10 @@ predictions for new data (single record or batch DataFrame).
 import os
 import joblib
 import pandas as pd
-from typing import Union, Dict, Any
+from typing import Any, Dict, List, Optional
 from sklearn.metrics import mean_absolute_error, r2_score
 
-from backend.core.preprocessing import load_all_data, coerce_numeric
+from backend.core.preprocessing import coerce_numeric, get_preprocessed_data
 import numpy as np
 
 # Default paths
@@ -42,13 +42,13 @@ FEATURES = [
 ]
 
 
-def _infer_year_from_path(path: str) -> int | None:
+def _infer_year_from_path(path: str) -> Optional[int]:
     """Infer a year value from a filename using 4-digit and 2-digit heuristics."""
     base = os.path.basename(path)
     stem, _ext = os.path.splitext(base)
     import re
 
-    year_val: int | None = None
+    year_val: Optional[int] = None
     # First, look for a 4-digit year
     m = re.search(r"(19|20)\d{2}", stem)
     if m:
@@ -88,7 +88,7 @@ def load_model(model_path: str = MODEL_PATH):
     return bundle["model"], bundle.get("meta", {})
 
 
-def _ensure_feature_columns(df: pd.DataFrame, features: list[str]) -> pd.DataFrame:
+def _ensure_feature_columns(df: pd.DataFrame, features: List[str]) -> pd.DataFrame:
     """Ensure all required feature columns exist; add missing as NaN and order columns.
 
     This lets the pipeline's imputer handle missing values at inference.
@@ -134,28 +134,24 @@ def predict_from_dict(data: Dict[str, Any], model_path: str = MODEL_PATH) -> flo
     return float(result_df["predicted_car_growth_nbr"].iloc[0])
 
 
-def predict_from_csv(input_csv: str, output_csv: str = None, model_path: str = MODEL_PATH, odot_district: int | None = 6) -> pd.DataFrame:
+def predict_from_csv(
+    input_csv: str,
+    output_csv: Optional[str] = None,
+    model_path: str = MODEL_PATH,
+    odot_district: Optional[int] = 6,
+) -> pd.DataFrame:
     """Load a CSV, run predictions, and optionally save results."""
     if not os.path.exists(input_csv):
         raise FileNotFoundError(f"Input CSV not found: {input_csv}")
 
     target_year = _infer_year_from_path(input_csv)
 
-    # Use the same multi-year dataset as training so lag features remain populated
-    df = load_all_data(DATA_DIR)
+    df = get_preprocessed_data(input_csv)
 
-    if target_year is not None:
-        if "year" in df.columns:
-            before_year = len(df)
-            df = df[df["year"] == target_year].copy()
-            after_year = len(df)
-            print(f"Filtered to target year {target_year}: {before_year} -> {after_year} rows")
-            if after_year == 0:
-                print(f"Warning: No rows found for target year {target_year} in aggregated dataset.")
-        else:
-            print(f"Warning: Aggregated dataset missing 'year' column; cannot filter to {target_year}.")
-    else:
-        print("Warning: Could not infer target year from filename; using all available years for prediction.")
+    if target_year is not None and "year" not in df.columns:
+        df["year"] = target_year
+    elif target_year is None and "year" not in df.columns:
+        print("Warning: Could not infer a year from filename or input columns.")
 
     # Match training scope by default: filter to ODOT district 6 if column is present
     if odot_district is not None and "odot_district" in df.columns:

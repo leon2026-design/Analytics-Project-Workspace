@@ -1,5 +1,6 @@
-# app package
+"""Dash application package."""
+
 from .app import create_app
 
-def init_app():
-    return create_app()
+app = create_app()
+server = app.server

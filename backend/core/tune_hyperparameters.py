@@ -17,9 +17,8 @@ import numpy as np
 from sklearn.model_selection import GridSearchCV, train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.impute import SimpleImputer
-from sklearn.metrics import mean_absolute_error, r2_score, make_scorer
+from sklearn.metrics import mean_absolute_error, r2_score
 from xgboost import XGBRegressor
-import joblib
 import json
 from datetime import datetime
 
@@ -151,7 +150,7 @@ def stage1_coarse_grid(X, y):
     return grid_search, results_df
 
 
-def stage2_fine_grid(X, y, best_params, results_df):
+def stage2_fine_grid(X, y, best_params):
     """Stage 2: Fine grid search around best parameters."""
     print("\n" + "="*70)
     print("STAGE 2: FINE GRID SEARCH")
@@ -276,27 +275,22 @@ def save_results(stage1_grid, stage2_grid, stage1_results):
     print(f"\n✓ Results saved to: {RESULTS_PATH}")
 
 
-def compare_with_baseline(stage2_grid, X, y):
+def compare_with_baseline(stage2_grid, X_train, X_test, y_train, y_test):
     """Compare tuned model with baseline hyperparameters."""
     print("\n" + "="*70)
     print("COMPARISON: TUNED vs BASELINE")
     print("="*70)
-    
-    # Split data
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42
-    )
     
     # Baseline model (current hyperparameters)
     baseline_pipeline = Pipeline([
         ("imputer", SimpleImputer(strategy="median")),
         ("xgb", XGBRegressor(
             n_estimators=500,
-            learning_rate=0.05,
-            max_depth=6,
+            learning_rate=0.07,
+            max_depth=7,
             subsample=0.8,
-            colsample_bytree=0.8,
-            reg_lambda=1.0,
+            colsample_bytree=0.5,
+            reg_lambda=1.25,
             random_state=42,
             n_jobs=-1,
             tree_method="hist",
@@ -309,7 +303,8 @@ def compare_with_baseline(stage2_grid, X, y):
     baseline_mae = mean_absolute_error(y_test, y_pred_baseline)
     baseline_r2 = r2_score(y_test, y_pred_baseline)
     
-    # Tuned model
+    # GridSearchCV was fit only on the training partition, so this prediction
+    # remains an unbiased comparison with the baseline.
     print("Training tuned model...")
     y_pred_tuned = stage2_grid.predict(X_test)
     tuned_mae = mean_absolute_error(y_test, y_pred_tuned)
@@ -347,9 +342,12 @@ def main():
     
     # Load data
     X, y, features = load_data()
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42
+    )
     
     # Stage 1: Coarse grid
-    stage1_grid, stage1_results = stage1_coarse_grid(X, y)
+    stage1_grid, stage1_results = stage1_coarse_grid(X_train, y_train)
     
     # Automatically proceed to Stage 2
     print("\n" + "="*70)
@@ -357,13 +355,13 @@ def main():
     print("="*70)
     
     # Stage 2: Fine grid
-    stage2_grid = stage2_fine_grid(X, y, stage1_grid.best_params_, stage1_results)
+    stage2_grid = stage2_fine_grid(X_train, y_train, stage1_grid.best_params_)
     
     # Save results
     save_results(stage1_grid, stage2_grid, stage1_results)
     
     # Compare with baseline
-    compare_with_baseline(stage2_grid, X, y)
+    compare_with_baseline(stage2_grid, X_train, X_test, y_train, y_test)
     
     print("\n" + "="*70)
     print("TUNING COMPLETE!")

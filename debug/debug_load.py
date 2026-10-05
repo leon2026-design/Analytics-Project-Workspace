@@ -1,6 +1,6 @@
 """Debug preprocessing loading."""
 
-from backend.preprocessing import load_data, clean_data
+from backend.core.preprocessing import load_data, clean_data
 import glob
 import os
 

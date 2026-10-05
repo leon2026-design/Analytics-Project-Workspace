@@ -1,10 +1,8 @@
-# Entry point for the web app (minimal stub)
+"""Application factory for the Dash dashboard."""
+
+from .dash_app import app as dash_app
+
 
 def create_app():
-    """Return a very small WSGI-like app function for testing."""
-    def app():
-        return "Columbus Traffic Predictor App"
-    return app
-
-if __name__ == "__main__":
-    print(create_app()())
+    """Return the configured Dash application."""
+    return dash_app
